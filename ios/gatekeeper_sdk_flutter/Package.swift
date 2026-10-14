@@ -12,13 +12,15 @@ let package = Package(
         .library(name: "gatekeeper-sdk-flutter", targets: ["gatekeeper_sdk_flutter"])
     ],
     dependencies: [
-        .package(name: "FlutterFramework", path: "../FlutterFramework")
+        .package(name: "FlutterFramework", path: "../FlutterFramework"),
+        .package(url: "https://github.com/bespot/gatekeeper-sdk-ios-release", from: "1.2.1")
     ],
     targets: [
         .target(
             name: "gatekeeper_sdk_flutter",
             dependencies: [
-                .product(name: "FlutterFramework", package: "FlutterFramework")
+                .product(name: "FlutterFramework", package: "FlutterFramework"),
+                .product(name: "AntifraudSDK", package: "gatekeeper-sdk-ios-release")
             ],
             resources: [
                 // If your plugin requires a privacy manifest, for example if it uses any required
