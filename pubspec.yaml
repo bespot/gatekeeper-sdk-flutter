@@ -1,7 +1,8 @@
 name: gatekeeper_sdk_flutter
-description: "A new Flutter plugin project."
+description: "Flutter plugin for Bespot GatekeeperSDK, a fraud prevention SDK for detecting suspicious device activity."
 version: 0.0.1
-homepage:
+repository: https://github.com/bespot/gatekeeper-sdk-flutter
+publish_to: none
 
 environment:
   sdk: ^3.13.5
