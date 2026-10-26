@@ -4,7 +4,8 @@ enum ActionType {
   limitAccess('LIMIT_ACCESS'),
   monitor('MONITOR'),
   notSafe('NOT_SAFE'),
-  safe('SAFE');
+  safe('SAFE'),
+  unknown('DEFAULT_UNKNOWN_ACTION');
 
   const ActionType(this.wireValue);
 
@@ -13,7 +14,7 @@ enum ActionType {
 
   static ActionType fromWire(String value) => values.firstWhere(
         (type) => type.wireValue == value,
-        orElse: () => throw ArgumentError.value(value, 'type', 'Unknown action type'),
+        orElse: () => ActionType.unknown,
       );
 }
 
