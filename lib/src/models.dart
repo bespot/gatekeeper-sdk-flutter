@@ -19,10 +19,10 @@ enum ActionType {
 }
 
 /// A Gatekeeper result: the action to take and its server-verifiable signature.
-class GatekeeperAction {
-  const GatekeeperAction({required this.type, required this.signature});
+class SafeSDKAction {
+  const SafeSDKAction({required this.type, required this.signature});
 
-  factory GatekeeperAction.fromMap(Map<Object?, Object?> map) => GatekeeperAction(
+  factory SafeSDKAction.fromMap(Map<Object?, Object?> map) => SafeSDKAction(
         type: ActionType.fromWire(map['type']! as String),
         signature: map['signature']! as String,
       );
@@ -31,11 +31,11 @@ class GatekeeperAction {
   final String signature;
 
   @override
-  String toString() => 'GatekeeperAction(type: ${type.name}, signature: $signature)';
+  String toString() => 'SafeSDKAction(type: ${type.name}, signature: $signature)';
 }
 
 /// Error codes shared by the iOS and Android implementations.
-enum GatekeeperErrorCode {
+enum SafeSDKErrorCode {
   networkConnection('NETWORK_CONNECTION'),
   noActiveApiKey('NO_ACTIVE_API_KEY'),
   quotaReachedForPlan('QUOTA_REACHED_FOR_PLAN'),
@@ -47,29 +47,30 @@ enum GatekeeperErrorCode {
   authError('AUTH_ERROR'),
   alreadyInitialized('ALREADY_INITIALIZED'),
   invalidArguments('INVALID_ARGUMENTS'),
+  unimplemented('UNIMPLEMENTED'),
   unknownError('UNKNOWN_ERROR');
 
-  const GatekeeperErrorCode(this.wireValue);
+  const SafeSDKErrorCode(this.wireValue);
 
   /// The value used on the platform channel.
   final String wireValue;
 
-  static GatekeeperErrorCode fromWire(String value) => values.firstWhere(
+  static SafeSDKErrorCode fromWire(String value) => values.firstWhere(
         (code) => code.wireValue == value,
-        orElse: () => GatekeeperErrorCode.unknownError,
+        orElse: () => SafeSDKErrorCode.unknownError,
       );
 }
 
 /// Thrown (or emitted on the subscribe stream) when the SDK reports a failure.
-class GatekeeperException implements Exception {
-  const GatekeeperException(this.code, {this.message, this.details});
+class SafeSDKException implements Exception {
+  const SafeSDKException(this.code, {this.message, this.details});
 
-  final GatekeeperErrorCode code;
+  final SafeSDKErrorCode code;
   final String? message;
 
   /// Optional extra information sent by the native SDK.
   final Object? details;
 
   @override
-  String toString() => 'GatekeeperException(${code.wireValue}${message != null ? ': $message' : ''})';
+  String toString() => 'SafeSDKException(${code.wireValue}${message != null ? ': $message' : ''})';
 }

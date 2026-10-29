@@ -1,24 +1,23 @@
-// This is a basic Flutter integration test.
-//
-// Since integration tests run in a full Flutter application, they can interact
-// with the host side of a plugin implementation, unlike Dart unit tests.
+// Flutter integration test: runs inside the example app on a real device or
+// simulator, so it can reach the native side of the plugin.
 //
 // For more information about Flutter integration tests, please see
 // https://flutter.dev/to/integration-testing
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:gatekeeper_sdk_flutter/gatekeeper_sdk_flutter.dart';
+import 'package:gatekeeper_sdk_flutter_example/main.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('getPlatformVersion test', (WidgetTester tester) async {
-    final GatekeeperSdkFlutter plugin = GatekeeperSdkFlutter();
-    final String? version = await plugin.getPlatformVersion();
-    // The version string depends on the host platform running the test, so
-    // just assert that some non-empty string is returned.
-    expect(version?.isNotEmpty, true);
+  // TODO: Once the native bridges exist, add tests that call SafeSDK on the
+  // device (e.g. `SafeSDK.check()` before initialization → NOT_INITIALIZED).
+  testWidgets('example app starts', (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+
+    expect(find.widgetWithText(ElevatedButton, 'Check Now'), findsOneWidget);
   });
 }

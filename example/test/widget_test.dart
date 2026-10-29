@@ -1,27 +1,42 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:gatekeeper_sdk_flutter_example/main.dart';
 
 void main() {
-  testWidgets('Verify Platform version', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('shows the same controls as the Capacitor example', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that platform version is retrieved.
-    expect(
-      find.byWidgetPredicate(
-        (Widget widget) =>
-            widget is Text && widget.data!.startsWith('Running on:'),
-      ),
-      findsOneWidget,
-    );
+    for (final label in [
+      'Enable Logging',
+      'Disable Logging',
+      'Initialize with Access Token',
+      'Update Access Token',
+      'Initialize',
+      'Check Now',
+      'Subscribe',
+      'Unsubscribe',
+      'UserId 1',
+      'UserId 2',
+      'UserId 3',
+      'Ask for location permissions',
+      'Ask for storage permissions (Android)',
+      'Ask for media-audio permissions (Android 13+)',
+    ]) {
+      expect(find.widgetWithText(ElevatedButton, label), findsOneWidget, reason: label);
+    }
+    expect(find.text('Enter access token here'), findsOneWidget);
+    expect(find.text('Action: No action result yet', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('starts with Update Access Token and Unsubscribe disabled', (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+
+    bool isEnabled(String label) => tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, label)).enabled;
+
+    expect(isEnabled('Update Access Token'), isFalse);
+    expect(isEnabled('Unsubscribe'), isFalse);
+    expect(isEnabled('Initialize with Access Token'), isTrue);
+    expect(isEnabled('Subscribe'), isTrue);
   });
 }
