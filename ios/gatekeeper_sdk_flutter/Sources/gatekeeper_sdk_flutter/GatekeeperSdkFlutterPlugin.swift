@@ -15,6 +15,18 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
         switch call.method {
         case "check":
             check(result: result)
+        case "enableLogging":
+            result(FlutterError(
+                code: "UNIMPLEMENTED",
+                message: "Not implemented on iOS. Use the debugLoggingEnabled parameter of initialize to enable debug logging.",
+                details: nil)
+            )
+        case "askForStoragePermissions", "askForMediaAudioPermissions":
+            result(FlutterError(
+                code: "UNIMPLEMENTED",
+                message: "Not implemented on iOS.",
+                details: nil)
+            )
         default:
             result(FlutterMethodNotImplemented)
         }
