@@ -41,6 +41,9 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
             }
             SafeSDK.sharedSafeSDK.setAccessToken(accessToken)
             result(nil)
+        case "unsubscribe":
+            SafeSDK.sharedSafeSDK.unsubscribe()
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }
