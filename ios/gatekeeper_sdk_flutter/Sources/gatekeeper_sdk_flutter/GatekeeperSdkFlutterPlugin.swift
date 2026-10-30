@@ -27,6 +27,13 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
                 message: "Not implemented on iOS.",
                 details: nil)
             )
+        case "setUserId":
+            guard let userId = Self.string("userId", from: call) else {
+                result(Self.missingArgument("userId"))
+                return
+            }
+            SafeSDK.sharedSafeSDK.setUserId(userId)
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -96,5 +103,14 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
         @unknown default:
             return "DEFAULT_UNKNOWN_ERROR"
         }
+    }
+
+    private static func string(_ key: String, from call: FlutterMethodCall) -> String? {
+        guard let arguments = call.arguments as? [String: Any] else { return nil }
+        return arguments[key] as? String
+    }
+
+    private static func missingArgument(_ key: String) -> FlutterError {
+        FlutterError(code: "INVALID_ARGUMENTS", message: "Missing required \(key) parameter", details: nil)
     }
 }
