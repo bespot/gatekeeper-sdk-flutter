@@ -34,6 +34,13 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
             }
             SafeSDK.sharedSafeSDK.setUserId(userId)
             result(nil)
+        case "setAccessToken":
+            guard let accessToken = Self.string("accessToken", from: call) else {
+                result(Self.missingArgument("accessToken"))
+                return
+            }
+            SafeSDK.sharedSafeSDK.setAccessToken(accessToken)
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }
