@@ -1,9 +1,11 @@
 import Flutter
 import UIKit
+import CoreLocation
 import AntifraudSDK
 
 public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
     private static let methodChannelName = "com.bespot/gatekeeper_sdk_flutter"
+    private let locationManager = CLLocationManager()
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: methodChannelName, binaryMessenger: registrar.messenger())
@@ -43,6 +45,9 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
             result(nil)
         case "unsubscribe":
             SafeSDK.sharedSafeSDK.unsubscribe()
+            result(nil)
+        case "askForLocationPermissions":
+            locationManager.requestWhenInUseAuthorization()
             result(nil)
         default:
             result(FlutterMethodNotImplemented)
