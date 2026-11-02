@@ -27,7 +27,7 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                   let clientId = SecretsConfigHelper.clientId,
                   let clientSecret = SecretsConfigHelper.clientSecret else {
                 result(FlutterError(
-                    code: "INVALID_CONFIG",
+                    code: "INVALID_ARGUMENTS",
                     message: "Missing API_BASE_URL, API_KEY, AUTH_TOKEN_URL, CLIENT_ID or CLIENT_SECRET in Info.plist",
                     details: nil))
                 return
