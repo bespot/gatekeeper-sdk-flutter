@@ -41,6 +41,26 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                 params: Self.params(from: call)
             )
             result(nil)
+        case "initializeWithAccessToken":
+            guard let accessToken = Self.string("accessToken", from: call) else {
+                result(Self.missingArgument("accessToken"))
+                return
+            }
+            guard let apiBaseUrl = SecretsConfigHelper.apiBaseUrl,
+                  let apiKey = SecretsConfigHelper.apiKey else {
+                result(FlutterError(
+                    code: "INVALID_ARGUMENTS",
+                    message: "Missing API_BASE_URL or API_KEY in Info.plist",
+                    details: nil))
+                return
+            }
+            SafeSDK.sharedSafeSDK.initialize(
+                apiBaseUrl: apiBaseUrl,
+                apiKey: apiKey,
+                accessToken: accessToken,
+                params: Self.params(from: call)
+            )
+            result(nil)
         case "check":
             check(result: result)
         case "enableLogging":
