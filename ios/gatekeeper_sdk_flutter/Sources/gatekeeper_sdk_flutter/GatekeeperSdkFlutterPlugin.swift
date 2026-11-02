@@ -70,7 +70,7 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                     ])
                     case .failure(let error):
                     result(FlutterError(code: Self.wireValue(of: error),
-                                        message: "SafeSDK check failed",
+                                        message: error.rawValue,
                                         details: nil
                                        )
                     )
@@ -146,7 +146,7 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                         "signature": action.signature,
                     ])
                 case .failure(let error):
-                    eventSink(FlutterError(code: Self.wireValue(of: error), message: "SafeSDK subscribe failed", details: nil))
+                    eventSink(FlutterError(code: Self.wireValue(of: error), message: error.rawValue, details: nil))
                 }
             }
         }
