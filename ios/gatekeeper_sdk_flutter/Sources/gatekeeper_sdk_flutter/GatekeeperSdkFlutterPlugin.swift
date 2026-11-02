@@ -3,14 +3,19 @@ import UIKit
 import CoreLocation
 import AntifraudSDK
 
-public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
+public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     private static let methodChannelName = "com.bespot/gatekeeper_sdk_flutter"
+    private static let eventChannelName = "com.bespot/gatekeeper_sdk_flutter/subscribe"
     private let locationManager = CLLocationManager()
+    private var eventSink: FlutterEventSink?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: methodChannelName, binaryMessenger: registrar.messenger())
         let instance = GatekeeperSdkFlutterPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
+
+        let eventChannel = FlutterEventChannel(name: eventChannelName, binaryMessenger: registrar.messenger())
+        eventChannel.setStreamHandler(instance)
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -127,5 +132,30 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin {
 
     private static func missingArgument(_ key: String) -> FlutterError {
         FlutterError(code: "INVALID_ARGUMENTS", message: "Missing required \(key) parameter", details: nil)
+    }
+
+    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        eventSink = events
+        SafeSDK.sharedSafeSDK.subscribe { [weak self] subscribeResult in
+            DispatchQueue.main.async {
+                guard let eventSink = self?.eventSink else { return }
+                switch subscribeResult {
+                case .success(let action):
+                    eventSink([
+                        "type": Self.wireValue(of: action.actionType),
+                        "signature": action.signature,
+                    ])
+                case .failure(let error):
+                    eventSink(FlutterError(code: Self.wireValue(of: error), message: "SafeSDK subscribe failed", details: nil))
+                }
+            }
+        }
+        return nil
+    }
+
+    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        eventSink = nil
+        SafeSDK.sharedSafeSDK.unsubscribe()
+        return nil
     }
 }
