@@ -20,6 +20,27 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
+        case "initialize":
+            guard let apiBaseUrl = SecretsConfigHelper.apiBaseUrl,
+                  let apiKey = SecretsConfigHelper.apiKey,
+                  let authTokenUrl = SecretsConfigHelper.authTokenUrl,
+                  let clientId = SecretsConfigHelper.clientId,
+                  let clientSecret = SecretsConfigHelper.clientSecret else {
+                result(FlutterError(
+                    code: "INVALID_CONFIG",
+                    message: "Missing API_BASE_URL, API_KEY, AUTH_TOKEN_URL, CLIENT_ID or CLIENT_SECRET in Info.plist",
+                    details: nil))
+                return
+            }
+            SafeSDK.sharedSafeSDK.initialize(
+                apiBaseUrl: apiBaseUrl,
+                apiKey: apiKey,
+                authTokenUrl: authTokenUrl,
+                clientId: clientId,
+                clientSecret: clientSecret,
+                params: Self.params(from: call)
+            )
+            result(nil)
         case "check":
             check(result: result)
         case "enableLogging":
@@ -77,6 +98,10 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                 }
             }
         }
+    }
+
+    private static func params(from call: FlutterMethodCall) -> [String: Any]? {
+        (call.arguments as? [String: Any])?["params"] as? [String: Any]
     }
 
     private static func wireValue(of type: ActionType) -> String {
