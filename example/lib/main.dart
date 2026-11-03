@@ -16,7 +16,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Mirrors the Gatekeeper Capacitor example app.
 class SafeSDKDemoPage extends StatefulWidget {
   const SafeSDKDemoPage({super.key});
 

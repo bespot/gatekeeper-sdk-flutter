@@ -111,7 +111,7 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                     ])
                     case .failure(let error):
                     result(FlutterError(code: Self.wireValue(of: error),
-                                        message: error.rawValue,
+                                        message: Self.message(of: error),
                                         details: nil
                                        )
                     )
@@ -170,6 +170,35 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
         }
     }
 
+    private static func message(of error: SDKError) -> String {
+        switch error {
+        case .networkConnection:
+            return "Connection Error"
+        case .noActiveApiKey:
+            return "The API Key is either disabled or wrong"
+        case .quotaReachedForPlan:
+            return "The quota for your plan has been reached"
+        case .noChecksAvailableFailure:
+            return "The server did not find available checks"
+        case .noRecipeFoundFailure:
+            return "The application does not have a valid recipe"
+        case .notInitialized:
+            return "The SDK is not initialized"
+        case .invalidToken:
+            return "The access token is invalid or expired"
+        case .authError:
+            return "Authentication failed"
+        case .alreadyInitialized:
+            return "The SDK is already initialized"
+        case .serverError:
+            return "Remote Server Error"
+        case .unknownError:
+            return "Unknown Error (see support section)"
+        @unknown default:
+            return "Unknown Error (see support section)"
+        }
+    }
+
     private static func string(_ key: String, from call: FlutterMethodCall) -> String? {
         guard let arguments = call.arguments as? [String: Any] else { return nil }
         return arguments[key] as? String
@@ -191,7 +220,7 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                         "signature": action.signature,
                     ])
                 case .failure(let error):
-                    eventSink(FlutterError(code: Self.wireValue(of: error), message: error.rawValue, details: nil))
+                    eventSink(FlutterError(code: Self.wireValue(of: error), message: Self.message(of: error), details: nil))
                 }
             }
         }

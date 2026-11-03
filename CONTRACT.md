@@ -67,34 +67,35 @@ Rules:
 | safe | `SAFE` |
 | anything else | `DEFAULT_UNKNOWN_ACTION` |
 
-The map is sent directly. It is not wrapped in an `action` key, unlike the Capacitor plugin.
+The map is sent directly. It is not wrapped in an `action` key.
 
 ## Errors
 
 Errors are sent as `FlutterError(code:message:details:)`.
 
-| SDK failure | `code` |
-|---|---|
-| network connection | `NETWORK_CONNECTION` |
-| no active API key | `NO_ACTIVE_API_KEY` |
-| quota reached for plan | `QUOTA_REACHED_FOR_PLAN` |
-| no checks available | `NO_CHECKS_AVAILABLE` |
-| no recipe found | `NO_RECIPE_FOUND` |
-| not initialized | `NOT_INITIALIZED` |
-| server error | `SERVER_ERROR` |
-| invalid token | `INVALID_TOKEN` |
-| auth error | `AUTH_ERROR` |
-| already initialized | `ALREADY_INITIALIZED` |
-| unknown error | `UNKNOWN_ERROR` |
-| missing argument or credential (bridge only) | `INVALID_ARGUMENTS` |
-| method not supported on this platform (bridge only) | `UNIMPLEMENTED` |
-| anything else | `DEFAULT_UNKNOWN_ERROR` |
+| SDK failure | `code` | `message` |
+|---|---|---|
+| network connection | `NETWORK_CONNECTION` | `Connection Error` |
+| no active API key | `NO_ACTIVE_API_KEY` | `The API Key is either disabled or wrong` |
+| quota reached for plan | `QUOTA_REACHED_FOR_PLAN` | `The quota for your plan has been reached` |
+| no checks available | `NO_CHECKS_AVAILABLE` | `The server did not find available checks` |
+| no recipe found | `NO_RECIPE_FOUND` | `The application does not have a valid recipe` |
+| not initialized | `NOT_INITIALIZED` | `The SDK is not initialized` |
+| server error | `SERVER_ERROR` | `Remote Server Error` |
+| invalid token | `INVALID_TOKEN` | `The access token is invalid or expired` |
+| auth error | `AUTH_ERROR` | `Authentication failed` |
+| already initialized | `ALREADY_INITIALIZED` | `The SDK is already initialized` |
+| unknown error | `UNKNOWN_ERROR` | `Unknown Error (see support section)` |
+| missing argument or credential (bridge only) | `INVALID_ARGUMENTS` | Names what is missing |
+| method not supported on this platform (bridge only) | `UNIMPLEMENTED` | See [Platform-specific methods](#platform-specific-methods) |
+| anything else | `DEFAULT_UNKNOWN_ERROR` | `Unknown Error (see support section)` |
 
-`message` is a human-readable description. `details` is optional and may be `null`.
+`message` is the text in the table above and must be the same on every platform.
+Apps must use `code`, not `message`, to decide what to do. `details` is optional and may be `null`.
 
 ## Platform-specific methods
 
-Like the Capacitor plugin, iOS does not support these methods. The bridge replies with an
+iOS does not support these methods. The bridge replies with an
 `UNIMPLEMENTED` error and does nothing else:
 
 | Method | `message` |

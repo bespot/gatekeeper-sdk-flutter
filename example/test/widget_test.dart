@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gatekeeper_sdk_flutter_example/main.dart';
 
 void main() {
-  testWidgets('shows the same controls as the Capacitor example', (WidgetTester tester) async {
+  testWidgets('shows all SDK controls', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
     for (final label in [
