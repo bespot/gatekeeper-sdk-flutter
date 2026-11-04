@@ -35,6 +35,9 @@ flutter:
   # adding or updating assets for this project.
   plugin:
     platforms:
+      android:
+        package: com.bespot.gatekeeper_sdk_flutter
+        pluginClass: GatekeeperSdkFlutterPlugin
       ios:
         pluginClass: GatekeeperSdkFlutterPlugin
 
