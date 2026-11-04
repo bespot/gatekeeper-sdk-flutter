@@ -18,6 +18,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://artifactory.bespot.com/artifactory/bespot-antifraud")
+        maven(url = "https://artifactory.bespot.com/artifactory/bespot-logger")
     }
 }
 
@@ -72,6 +74,7 @@ kotlin {
 }
 
 dependencies {
+    implementation("com.bespot.antifraud:sdk-android:1.2.5")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

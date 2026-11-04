@@ -2,6 +2,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://artifactory.bespot.com/artifactory/bespot-antifraud")
+        maven(url = "https://artifactory.bespot.com/artifactory/bespot-logger")
     }
 }
 
