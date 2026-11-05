@@ -1,38 +1,84 @@
 package com.bespot.gatekeeper_sdk_flutter
 
+import android.content.Context
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
-/** GatekeeperSdkFlutterPlugin */
+/** Connects the Dart API to the Android SDK. See CONTRACT.md for the channel contract. */
 class GatekeeperSdkFlutterPlugin :
     FlutterPlugin,
-    MethodCallHandler {
-    // The MethodChannel that will the communication between Flutter and native Android
-    //
-    // This local reference serves to register the plugin with the Flutter Engine and unregister it
-    // when the Flutter Engine is detached from the Activity
-    private lateinit var channel: MethodChannel
+    MethodCallHandler,
+    EventChannel.StreamHandler,
+    ActivityAware {
+    private lateinit var methodChannel: MethodChannel
+    private lateinit var eventChannel: EventChannel
+    private lateinit var applicationContext: Context
+    // Null while Dart is not listening to the stream.
+    private var eventSink: EventChannel.EventSink? = null
+    // The binding, not only the Activity, because permission results need a listener on it.
+    private var activityBinding: ActivityPluginBinding? = null
 
-    override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        channel = MethodChannel(flutterPluginBinding.binaryMessenger, "gatekeeper_sdk_flutter")
-        channel.setMethodCallHandler(this)
+    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        applicationContext = binding.applicationContext
+
+        methodChannel = MethodChannel(binding.binaryMessenger, METHOD_CHANNEL_NAME)
+        methodChannel.setMethodCallHandler(this)
+
+        eventChannel = EventChannel(binding.binaryMessenger, EVENT_CHANNEL_NAME)
+        eventChannel.setStreamHandler(this)
+    }
+
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        methodChannel.setMethodCallHandler(null)
+        eventChannel.setStreamHandler(null)
+        eventSink = null
     }
 
     override fun onMethodCall(
         call: MethodCall,
-        result: Result
+        result: Result,
     ) {
-        if (call.method == "getPlatformVersion") {
-            result.success("Android ${android.os.Build.VERSION.RELEASE}")
-        } else {
-            result.notImplemented()
-        }
+        result.notImplemented()
     }
 
-    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        channel.setMethodCallHandler(null)
+    override fun onListen(
+        arguments: Any?,
+        events: EventChannel.EventSink,
+    ) {
+        eventSink = events
+    }
+
+    override fun onCancel(arguments: Any?) {
+        eventSink = null
+    }
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activityBinding = binding
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        // The Activity is being recreated, for example on rotation. The new one arrives in
+        // onReattachedToActivityForConfigChanges.
+        activityBinding = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activityBinding = binding
+    }
+
+    override fun onDetachedFromActivity() {
+        activityBinding = null
+    }
+
+    private companion object {
+        // These names must match the Dart and iOS sides.
+        const val METHOD_CHANNEL_NAME = "com.bespot/gatekeeper_sdk_flutter"
+        const val EVENT_CHANNEL_NAME = "com.bespot/gatekeeper_sdk_flutter/subscribe"
     }
 }
