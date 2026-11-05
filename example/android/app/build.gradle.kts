@@ -1,13 +1,27 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun secret(key: String) = "\"${localProperties.getProperty(key, "")}\""
+
 android {
     namespace = "com.bespot.gatekeeper_sdk_flutter_example"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    buildFeatures {
+        // Android Gradle Plugin 9 disables resValue by default. The SDK credentials below need it.
+        resValues = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -27,6 +41,11 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        resValue("string", "antifraud_sdk_api_url", secret("API_URL"))
+        resValue("string", "antifraud_sdk_key", secret("API_KEY"))
+        resValue("string", "antifraud_sdk_oauth2_token_url", secret("OAUTH2_TOKEN_URL"))
+        resValue("string", "antifraud_sdk_client_id", secret("CLIENT_ID"))
+        resValue("string", "antifraud_sdk_client_secret", secret("CLIENT_SECRET"))
     }
 
     buildTypes {
