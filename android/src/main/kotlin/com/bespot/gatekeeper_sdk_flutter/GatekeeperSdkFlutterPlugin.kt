@@ -46,6 +46,24 @@ class GatekeeperSdkFlutterPlugin :
         result: Result,
     ) {
         when (call.method) {
+            "initialize" -> result.error(
+                "UNIMPLEMENTED",
+                "Not implemented on Android. Initialization is done at application launch.",
+                null
+            )
+            "initializeWithAccessToken" -> {
+                val accessToken = call.argument<String>("accessToken")
+                val apiBaseUrl = resString("antifraud_sdk_api_url")
+                val apiKey = resString("antifraud_sdk_key")
+                if (apiBaseUrl.isNullOrEmpty() || apiKey.isNullOrEmpty()) {
+                    return result.error("INVALID_ARGUMENTS", "Missing required initialize parameters", null)
+                }
+                if (accessToken.isNullOrEmpty()) {
+                    return result.missingArgument("accessToken")
+                }
+                SafeSdk.initWithAccessToken(apiBaseUrl, apiKey, accessToken)
+                result.success(null)
+            }
             "setUserId" -> {
                 val userId = call.argument<String>("userId") ?: return result.missingArgument("userId")
                 SafeSdk.setUserID(userId)
@@ -96,6 +114,11 @@ class GatekeeperSdkFlutterPlugin :
 
     private fun Result.missingArgument(key: String) {
         error("INVALID_ARGUMENTS", "Missing required $key parameter", null)
+    }
+
+    private fun resString(name: String): String? {
+        val id = applicationContext.resources.getIdentifier(name, "string", applicationContext.packageName)
+        return if (id != 0) applicationContext.getString(id) else null
     }
 
     private companion object {

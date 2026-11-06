@@ -76,5 +76,5 @@ kotlin {
 dependencies {
     implementation("com.bespot.antifraud:sdk-android:1.2.5")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.mockito:mockito-core:5.0.0")
+    testImplementation("org.mockito:mockito-core:5.12.0")
 }
