@@ -1,6 +1,7 @@
 package com.bespot.gatekeeper_sdk_flutter
 
 import android.content.Context
+import com.bespot.shared.core.SafeSdk
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -44,7 +45,24 @@ class GatekeeperSdkFlutterPlugin :
         call: MethodCall,
         result: Result,
     ) {
-        result.notImplemented()
+        when (call.method) {
+            "setUserId" -> {
+                val userId = call.argument<String>("userId") ?: return result.missingArgument("userId")
+                SafeSdk.setUserID(userId)
+                result.success(null)
+            }
+            "setAccessToken" -> {
+                val accessToken = call.argument<String>("accessToken") ?: return result.missingArgument("accessToken")
+                SafeSdk.setAccessToken(accessToken)
+                result.success(null)
+            }
+            "enableLogging" -> {
+                val enabled = call.argument<Boolean>("debugLoggingEnabled") ?: return result.missingArgument("debugLoggingEnabled")
+                SafeSdk.logging(enabled)
+                result.success(null)
+            }
+            else -> result.notImplemented()
+        }
     }
 
     override fun onListen(
@@ -74,6 +92,10 @@ class GatekeeperSdkFlutterPlugin :
 
     override fun onDetachedFromActivity() {
         activityBinding = null
+    }
+
+    private fun Result.missingArgument(key: String) {
+        error("INVALID_ARGUMENTS", "Missing required $key parameter", null)
     }
 
     private companion object {

@@ -23,4 +23,30 @@ internal class GatekeeperSdkFlutterPluginTest {
 
         Mockito.verify(result).notImplemented()
     }
+    @Test
+    fun onMethodCall_setUserIdWithoutArgument_returnsInvalidArguments() {
+        assertMissingArgument("setUserId", "userId")
+    }
+
+    @Test
+    fun onMethodCall_setAccessTokenWithoutArgument_returnsInvalidArguments() {
+        assertMissingArgument("setAccessToken", "accessToken")
+    }
+
+    @Test
+    fun onMethodCall_enableLoggingWithoutArgument_returnsInvalidArguments() {
+        assertMissingArgument("enableLogging", "debugLoggingEnabled")
+    }
+
+    private fun assertMissingArgument(
+        method: String,
+        key: String,
+    ) {
+        val plugin = GatekeeperSdkFlutterPlugin()
+        val result: MethodChannel.Result = Mockito.mock(MethodChannel.Result::class.java)
+
+        plugin.onMethodCall(MethodCall(method, null), result)
+
+        Mockito.verify(result).error("INVALID_ARGUMENTS", "Missing required $key parameter", null)
+    }
 }
