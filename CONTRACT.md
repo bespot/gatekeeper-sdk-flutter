@@ -28,7 +28,6 @@ Method names and argument keys are case-sensitive. Arguments arrive as a map (`n
 | `setUserId` | `{"userId": String}` | `null` |
 | `enableLogging` | `{"debugLoggingEnabled": Bool}` | `null` |
 | `check` | none | Action map (see below) |
-| `unsubscribe` | none | `null` |
 | `askForLocationPermissions` | none | `null` |
 | `askForStoragePermissions` | none | `null` |
 | `askForMediaAudioPermissions` | none | `null` |
@@ -121,3 +120,5 @@ The bridge registers a `FlutterStreamHandler` on the `EventChannel`:
 - Send events on the main thread.
 
 Dart shares a single native subscription between all listeners. `onCancel` arrives when the last listener cancels.
+
+There is no `unsubscribe` method on the `MethodChannel`. Apps stop receiving results by cancelling the stream subscription.

@@ -40,9 +40,6 @@ class MockGatekeeperSdkFlutterPlatform with MockPlatformInterfaceMixin implement
   }
 
   @override
-  Future<void> unsubscribe() async => calls.add('unsubscribe');
-
-  @override
   Future<void> askForLocationPermissions() async => calls.add('askForLocationPermissions');
 
   @override
@@ -92,11 +89,10 @@ void main() {
       expect(action.signature, 'test-signature');
     });
 
-    test('subscribe and unsubscribe', () async {
+    test('subscribe returns the platform stream', () async {
       expect(await SafeSDK.subscribe().first, MockGatekeeperSdkFlutterPlatform.action);
-      await SafeSDK.unsubscribe();
 
-      expect(fakePlatform.calls, ['subscribe', 'unsubscribe']);
+      expect(fakePlatform.calls, ['subscribe']);
     });
 
     test('permission requests', () async {

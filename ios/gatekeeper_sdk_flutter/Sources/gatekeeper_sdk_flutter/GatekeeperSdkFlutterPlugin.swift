@@ -89,9 +89,6 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
             }
             SafeSDK.sharedSafeSDK.setAccessToken(accessToken)
             result(nil)
-        case "unsubscribe":
-            SafeSDK.sharedSafeSDK.unsubscribe()
-            result(nil)
         case "askForLocationPermissions":
             locationManager.requestWhenInUseAuthorization()
             result(nil)

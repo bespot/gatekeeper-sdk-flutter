@@ -57,9 +57,6 @@ class MethodChannelGatekeeperSdkFlutter extends GatekeeperSdkFlutterPlatform {
   Stream<SafeSDKAction> subscribe() => _subscription;
 
   @override
-  Future<void> unsubscribe() => _invoke<void>('unsubscribe');
-
-  @override
   Future<void> askForLocationPermissions() => _invoke<void>('askForLocationPermissions');
 
   @override
