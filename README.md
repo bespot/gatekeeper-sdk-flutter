@@ -72,6 +72,14 @@ The plugin never receives credentials from Dart. On iOS it reads them from your 
 To keep them out of your source code, store them in an `.xcconfig` file that is not committed,
 and let Xcode copy them into `Info.plist` at build time.
 
+> [!WARNING]
+> This keeps the credentials out of Git, not out of your app. `Info.plist` is part of the app you ship,
+> and anyone who downloads the app can read it, including `CLIENT_ID` and `CLIENT_SECRET`.
+> With these values, anyone can get access tokens as your app.
+> For production apps, use `initializeWithAccessToken()`: your backend keeps the client secret
+> and gives the app short-lived access tokens. Use `initialize()` only if you accept this risk,
+> for example during development and testing.
+
 Which keys you need depends on how you initialize the SDK:
 
 | Key | `initialize()` | `initializeWithAccessToken()` |
@@ -177,7 +185,9 @@ See [Error handling](#error-handling).
 > Initialize the SDK only once per app launch, as early as possible after your app starts, for example in `main()`.
 > Choose one of the two modes below, and do not call `initialize` or `initializeWithAccessToken` again.
 
-**OAuth2.** The SDK gets and refreshes its access token by itself, using the credentials from `Info.plist`:
+**OAuth2.** The SDK gets and refreshes its access token by itself, using the credentials from `Info.plist`.
+Not recommended for production apps, because the client secret ships inside the app.
+See [Credentials](#credentials):
 
 ```dart
 await SafeSDK.initialize(debugLoggingEnabled: kDebugMode);
