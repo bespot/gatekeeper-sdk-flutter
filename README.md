@@ -198,6 +198,8 @@ When the token is about to expire, give the SDK the new one. Do not call `initia
 await SafeSDK.setAccessToken(newAccessToken);
 ```
 
+An empty token is ignored: `setAccessToken` does not throw, and the SDK keeps the previous token.
+
 To initialize in `main()`, before `runApp()`, call `WidgetsFlutterBinding.ensureInitialized()` first.
 Plugins cannot be called before Flutter is ready:
 
@@ -212,8 +214,10 @@ Future<void> main() async {
 ```
 
 Initialize returns as soon as the SDK has started. The SDK then registers the device and runs
-the first checks in the background. Network or credential errors from this step are reported later,
-by `check` or by the `subscribe` stream.
+the first checks in the background. If the registration fails, for example because of an invalid or empty access token,
+a wrong API key or wrong OAuth2 credentials, the error is written only to the SDK debug logs.
+`check` then throws a `SafeSDKException` with `SafeSDKErrorCode.notInitialized` until the app
+is restarted. Calling `setAccessToken` does not fix this.
 
 #### Set the user
 
@@ -310,14 +314,18 @@ try {
 | `quotaReachedForPlan` | The quota for your plan has been reached. |
 | `noChecksAvailable` | The server has no checks for this app. |
 | `noRecipeFound` | The app has no valid recipe on the server. |
-| `notInitialized` | A method was called before initialize. |
+| `notInitialized` | A method was called before initialize, or the device registration after initialize failed. In the second case, restart the app. |
 | `serverError` | The server returned an error. |
-| `invalidToken` | The access token is invalid or expired. |
-| `authError` | Authentication failed, for example wrong OAuth2 credentials. |
+| `invalidToken` | The access token is invalid or expired. Get a new token and call `setAccessToken`. |
+| `authError` | The SDK could not get an OAuth2 access token, for example because of wrong credentials or a server error. |
 | `alreadyInitialized` | Initialize was called more than once. |
 | `invalidArguments` | A credential is missing from `Info.plist`, or a required argument is missing. |
 | `unimplemented` | The method is not supported on iOS. See [Android-only methods](#android-only-methods). |
 | `unknownError` | Any other error. |
+
+If one of these errors happens during the device registration after initialize,
+for example `invalidToken`, `authError` or `noActiveApiKey`, it is not reported to the app.
+`check` throws `notInitialized` instead. See [Initialize](#initialize).
 
 ### Android-only methods
 
