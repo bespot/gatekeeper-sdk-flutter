@@ -371,3 +371,24 @@ await SafeSDK.initialize(debugLoggingEnabled: kDebugMode);
 
 **Important:** The debug logs include the API key, the client secret and the access token in plain text.
 Never enable them in production builds, and remove these values before you share a log.
+
+## Running the example app
+
+Clone the repository into a folder named `gatekeeper_sdk_flutter`:
+
+```bash
+git clone https://github.com/bespot/gatekeeper-sdk-flutter.git gatekeeper_sdk_flutter
+```
+
+Xcode takes the identity of the plugin's Swift package from this folder name. With any other name,
+for example the default `gatekeeper-sdk-flutter`, resolving the Swift packages of the example app fails with
+"identity doesn't match override's identity". Apps that depend on the plugin are not affected.
+
+Then run the example on a device or simulator:
+
+```bash
+cd gatekeeper_sdk_flutter/example
+flutter run
+```
+
+To check, initialize and subscribe, the example app also needs the credentials described in [Credentials](#credentials).
