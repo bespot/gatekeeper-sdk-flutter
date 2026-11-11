@@ -1,6 +1,8 @@
 package com.bespot.gatekeeper_sdk_flutter
 
 import android.content.Context
+import com.bespot.shared.common.models.Action
+import com.bespot.shared.core.Failure
 import com.bespot.shared.core.SafeSdk
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -120,6 +122,28 @@ class GatekeeperSdkFlutterPlugin :
         val id = applicationContext.resources.getIdentifier(name, "string", applicationContext.packageName)
         return if (id != 0) applicationContext.getString(id) else null
     }
+
+    internal fun actionMap(
+        action: Action,
+        signature: String,
+    ): Map<String, String> = mapOf("type" to action.toString(), "signature" to signature)
+
+    internal fun mapFailureToCodeAndMessage(error: Failure): Pair<String, String> =
+        when (error) {
+            is Failure.NetworkConnection -> "NETWORK_CONNECTION" to "Connection Error"
+            is Failure.NoActiveApiKey -> "NO_ACTIVE_API_KEY" to "The API Key is either disabled or wrong"
+            is Failure.QuotaReachedForPlan -> "QUOTA_REACHED_FOR_PLAN" to "The quota for your plan has been reached"
+            is Failure.NoChecksAvailableFailure -> "NO_CHECKS_AVAILABLE" to "The server did not find available checks"
+            is Failure.NoRecipeFoundFailure -> "NO_RECIPE_FOUND" to "The application does not have a valid recipe"
+            is Failure.NotInitialized -> "NOT_INITIALIZED" to "The SDK is not initialized"
+            is Failure.ServerError -> "SERVER_ERROR" to "Remote Server Error"
+            is Failure.UnknownError -> "UNKNOWN_ERROR" to "Unknown Error (see support section)"
+            is Failure.InvalidToken -> "INVALID_TOKEN" to "The access token is invalid or expired"
+            is Failure.AuthError -> "AUTH_ERROR" to "Authentication failed"
+            is Failure.AlreadyInitialized -> "ALREADY_INITIALIZED" to "The SDK is already initialized"
+            // Kept for SDK versions newer than the one this plugin is built with.
+            else -> "DEFAULT_UNKNOWN_ERROR" to "Unknown Error (see support section)"
+        }
 
     private companion object {
         // These names must match the Dart and iOS sides.

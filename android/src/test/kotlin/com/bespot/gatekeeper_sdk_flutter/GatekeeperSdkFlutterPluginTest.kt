@@ -2,12 +2,15 @@ package com.bespot.gatekeeper_sdk_flutter
 
 import android.content.Context
 import android.content.res.Resources
+import com.bespot.shared.common.models.Action
+import com.bespot.shared.core.Failure
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.mockito.Mockito
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /*
  * This demonstrates a simple unit test of the Kotlin portion of this plugin's implementation.
@@ -75,6 +78,44 @@ internal class GatekeeperSdkFlutterPluginTest {
         val result = callInitializeWithAccessToken(attachedPluginWithResources(), "")
 
         Mockito.verify(result).error("INVALID_ARGUMENTS", "Missing required accessToken parameter", null)
+    }
+
+    @Test
+    fun actionMap_usesTheSdkActionNameAndTheSignature() {
+        val plugin = GatekeeperSdkFlutterPlugin()
+        val expected = listOf(
+            Action.BLOCK to "BLOCK",
+            Action.LIMIT_ACCESS to "LIMIT_ACCESS",
+            Action.MONITOR to "MONITOR",
+            Action.NOT_SAFE to "NOT_SAFE",
+            Action.SAFE to "SAFE",
+        )
+
+        for ((action, type) in expected) {
+            assertEquals(mapOf("type" to type, "signature" to "signature"), plugin.actionMap(action, "signature"))
+        }
+    }
+
+    @Test
+    fun mapFailureToCodeAndMessage_mapsEveryFailure() {
+        val plugin = GatekeeperSdkFlutterPlugin()
+        val expected = listOf(
+            Failure.NetworkConnection to ("NETWORK_CONNECTION" to "Connection Error"),
+            Failure.NoActiveApiKey to ("NO_ACTIVE_API_KEY" to "The API Key is either disabled or wrong"),
+            Failure.QuotaReachedForPlan to ("QUOTA_REACHED_FOR_PLAN" to "The quota for your plan has been reached"),
+            Failure.NoChecksAvailableFailure to ("NO_CHECKS_AVAILABLE" to "The server did not find available checks"),
+            Failure.NoRecipeFoundFailure to ("NO_RECIPE_FOUND" to "The application does not have a valid recipe"),
+            Failure.NotInitialized to ("NOT_INITIALIZED" to "The SDK is not initialized"),
+            Failure.ServerError to ("SERVER_ERROR" to "Remote Server Error"),
+            Failure.UnknownError to ("UNKNOWN_ERROR" to "Unknown Error (see support section)"),
+            Failure.InvalidToken to ("INVALID_TOKEN" to "The access token is invalid or expired"),
+            Failure.AuthError to ("AUTH_ERROR" to "Authentication failed"),
+            Failure.AlreadyInitialized("OAUTH2", "ACCESS_TOKEN") to ("ALREADY_INITIALIZED" to "The SDK is already initialized"),
+        )
+
+        for ((failure, codeAndMessage) in expected) {
+            assertEquals(codeAndMessage, plugin.mapFailureToCodeAndMessage(failure), failure::class.simpleName)
+        }
     }
 
     private fun callInitializeWithAccessToken(
