@@ -67,13 +67,11 @@ void main() {
     });
 
     test('calls without arguments', () async {
-      await platform.unsubscribe();
       await platform.askForLocationPermissions();
       await platform.askForStoragePermissions();
       await platform.askForMediaAudioPermissions();
 
       expect(calls.map((c) => c.method), [
-        'unsubscribe',
         'askForLocationPermissions',
         'askForStoragePermissions',
         'askForMediaAudioPermissions',

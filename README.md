@@ -72,6 +72,14 @@ The plugin never receives credentials from Dart. On iOS it reads them from your 
 To keep them out of your source code, store them in an `.xcconfig` file that is not committed,
 and let Xcode copy them into `Info.plist` at build time.
 
+> [!WARNING]
+> This keeps the credentials out of Git, not out of your app. `Info.plist` is part of the app you ship,
+> and anyone who downloads the app can read it, including `CLIENT_ID` and `CLIENT_SECRET`.
+> With these values, anyone can get access tokens as your app.
+> For production apps, use `initializeWithAccessToken()`: your backend keeps the client secret
+> and gives the app short-lived access tokens. Use `initialize()` only if you accept this risk,
+> for example during development and testing.
+
 Which keys you need depends on how you initialize the SDK:
 
 | Key | `initialize()` | `initializeWithAccessToken()` |
@@ -177,7 +185,9 @@ See [Error handling](#error-handling).
 > Initialize the SDK only once per app launch, as early as possible after your app starts, for example in `main()`.
 > Choose one of the two modes below, and do not call `initialize` or `initializeWithAccessToken` again.
 
-**OAuth2.** The SDK gets and refreshes its access token by itself, using the credentials from `Info.plist`:
+**OAuth2.** The SDK gets and refreshes its access token by itself, using the credentials from `Info.plist`.
+Not recommended for production apps, because the client secret ships inside the app.
+See [Credentials](#credentials):
 
 ```dart
 await SafeSDK.initialize(debugLoggingEnabled: kDebugMode);
@@ -198,6 +208,8 @@ When the token is about to expire, give the SDK the new one. Do not call `initia
 await SafeSDK.setAccessToken(newAccessToken);
 ```
 
+An empty token is ignored: `setAccessToken` does not throw, and the SDK keeps the previous token.
+
 To initialize in `main()`, before `runApp()`, call `WidgetsFlutterBinding.ensureInitialized()` first.
 Plugins cannot be called before Flutter is ready:
 
@@ -212,8 +224,10 @@ Future<void> main() async {
 ```
 
 Initialize returns as soon as the SDK has started. The SDK then registers the device and runs
-the first checks in the background. Network or credential errors from this step are reported later,
-by `check` or by the `subscribe` stream.
+the first checks in the background. If the registration fails, for example because of an invalid or empty access token,
+a wrong API key or wrong OAuth2 credentials, the error is written only to the SDK debug logs.
+`check` then throws a `SafeSDKException` with `SafeSDKErrorCode.notInitialized` until the app
+is restarted. Calling `setAccessToken` does not fix this.
 
 #### Set the user
 
@@ -310,14 +324,18 @@ try {
 | `quotaReachedForPlan` | The quota for your plan has been reached. |
 | `noChecksAvailable` | The server has no checks for this app. |
 | `noRecipeFound` | The app has no valid recipe on the server. |
-| `notInitialized` | A method was called before initialize. |
+| `notInitialized` | A method was called before initialize, or the device registration after initialize failed. In the second case, restart the app. |
 | `serverError` | The server returned an error. |
-| `invalidToken` | The access token is invalid or expired. |
-| `authError` | Authentication failed, for example wrong OAuth2 credentials. |
+| `invalidToken` | The access token is invalid or expired. Get a new token and call `setAccessToken`. |
+| `authError` | The SDK could not get an OAuth2 access token, for example because of wrong credentials or a server error. |
 | `alreadyInitialized` | Initialize was called more than once. |
 | `invalidArguments` | A credential is missing from `Info.plist`, or a required argument is missing. |
 | `unimplemented` | The method is not supported on iOS. See [Android-only methods](#android-only-methods). |
 | `unknownError` | Any other error. |
+
+If one of these errors happens during the device registration after initialize,
+for example `invalidToken`, `authError` or `noActiveApiKey`, it is not reported to the app.
+`check` throws `notInitialized` instead. See [Initialize](#initialize).
 
 ### Android-only methods
 
@@ -353,3 +371,24 @@ await SafeSDK.initialize(debugLoggingEnabled: kDebugMode);
 
 **Important:** The debug logs include the API key, the client secret and the access token in plain text.
 Never enable them in production builds, and remove these values before you share a log.
+
+## Running the example app
+
+Clone the repository into a folder named `gatekeeper_sdk_flutter`:
+
+```bash
+git clone https://github.com/bespot/gatekeeper-sdk-flutter.git gatekeeper_sdk_flutter
+```
+
+Xcode takes the identity of the plugin's Swift package from this folder name. With any other name,
+for example the default `gatekeeper-sdk-flutter`, resolving the Swift packages of the example app fails with
+"identity doesn't match override's identity". Apps that depend on the plugin are not affected.
+
+Then run the example on a device or simulator:
+
+```bash
+cd gatekeeper_sdk_flutter/example
+flutter run
+```
+
+To check, initialize and subscribe, the example app also needs the credentials described in [Credentials](#credentials).

@@ -63,15 +63,10 @@ abstract class GatekeeperSdkFlutterPlatform extends PlatformInterface {
 
   /// Results of the periodic checks. Call an initialize method first.
   ///
-  /// Errors are emitted as [SafeSDKException]. Cancelling the
-  /// subscription stops the native periodic checks.
+  /// Errors are emitted as [SafeSDKException]. Cancelling the subscription
+  /// stops delivering results. The periodic checks keep running in the SDK.
   Stream<SafeSDKAction> subscribe() {
     throw UnimplementedError('subscribe() has not been implemented.');
-  }
-
-  /// Stops the periodic checks started by [subscribe].
-  Future<void> unsubscribe() {
-    throw UnimplementedError('unsubscribe() has not been implemented.');
   }
 
   /// Requests "When In Use" location permission (iOS & Android).

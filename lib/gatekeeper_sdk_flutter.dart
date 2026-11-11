@@ -41,12 +41,9 @@ class SafeSDK {
 
   /// Results of the periodic checks. Call an initialize method first.
   ///
-  /// Errors are emitted as [SafeSDKException]. Cancelling the
-  /// subscription stops the native periodic checks.
+  /// Errors are emitted as [SafeSDKException]. Cancelling the subscription
+  /// stops delivering results. The periodic checks keep running in the SDK.
   static Stream<SafeSDKAction> subscribe() => _platform.subscribe();
-
-  /// Stops the periodic checks started by [subscribe].
-  static Future<void> unsubscribe() => _platform.unsubscribe();
 
   /// Requests "When In Use" location permission (iOS & Android).
   static Future<void> askForLocationPermissions() => _platform.askForLocationPermissions();
