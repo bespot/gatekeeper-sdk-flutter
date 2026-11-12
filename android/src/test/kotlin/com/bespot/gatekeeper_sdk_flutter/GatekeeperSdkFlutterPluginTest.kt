@@ -118,6 +118,19 @@ internal class GatekeeperSdkFlutterPluginTest {
         }
     }
 
+    @Test
+    fun askForPermissions_withoutActivity_returnsNoActivity() {
+        val plugin = GatekeeperSdkFlutterPlugin()
+
+        for (method in listOf("askForLocationPermissions", "askForStoragePermissions", "askForMediaAudioPermissions")) {
+            val result: MethodChannel.Result = Mockito.mock(MethodChannel.Result::class.java)
+
+            plugin.onMethodCall(MethodCall(method, null), result)
+
+            Mockito.verify(result).error("NO_ACTIVITY", "No Activity to show the permission dialog", null)
+        }
+    }
+
     private fun callInitializeWithAccessToken(
         plugin: GatekeeperSdkFlutterPlugin,
         accessToken: String?,

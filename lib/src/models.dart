@@ -47,6 +47,8 @@ enum SafeSDKErrorCode {
   authError('AUTH_ERROR'),
   alreadyInitialized('ALREADY_INITIALIZED'),
   invalidArguments('INVALID_ARGUMENTS'),
+  permissionDenied('PERMISSION_DENIED'),
+  noActivity('NO_ACTIVITY'),
   unimplemented('UNIMPLEMENTED'),
   unknownError('UNKNOWN_ERROR');
 

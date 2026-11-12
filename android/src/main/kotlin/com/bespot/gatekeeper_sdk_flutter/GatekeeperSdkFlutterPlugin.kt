@@ -1,6 +1,8 @@
 package com.bespot.gatekeeper_sdk_flutter
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import com.bespot.shared.common.models.Action
@@ -15,6 +17,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import io.flutter.plugin.common.PluginRegistry
 
 /** Connects the Dart API to the Android SDK. See CONTRACT.md for the channel contract. */
 class GatekeeperSdkFlutterPlugin :
@@ -55,6 +58,24 @@ class GatekeeperSdkFlutterPlugin :
                 val (code, message) = mapFailureToCodeAndMessage(error)
                 mainHandler.post { deliverError(code, message) }
             }
+        }
+
+    // Permission requests waiting for the user's answer. A second request for the same
+    // group while its dialog is open waits for the same answer.
+    private val pendingPermissionRequests = mutableMapOf<PermissionGroup, MutableList<Result>>()
+
+    private val permissionsResultListener =
+        PluginRegistry.RequestPermissionsResultListener { requestCode, _, _ ->
+            val group =
+                PermissionGroup.entries.firstOrNull { it.requestCode == requestCode }
+                    ?: return@RequestPermissionsResultListener false
+            val waiting = pendingPermissionRequests.remove(group).orEmpty()
+            if (isGranted(group)) {
+                waiting.forEach { it.success(null) }
+            } else {
+                waiting.forEach { it.error("PERMISSION_DENIED", group.deniedMessage, null) }
+            }
+            true
         }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -101,6 +122,9 @@ class GatekeeperSdkFlutterPlugin :
                 pendingChecks.add(result)
                 SafeSdk.check(sdkObserver)
             }
+            "askForLocationPermissions" -> askForPermissions(PermissionGroup.LOCATION, result)
+            "askForStoragePermissions" -> askForPermissions(PermissionGroup.STORAGE, result)
+            "askForMediaAudioPermissions" -> askForPermissions(PermissionGroup.MEDIA_AUDIO, result)
             "setUserId" -> {
                 val userId = call.argument<String>("userId") ?: return result.missingArgument("userId")
                 SafeSdk.setUserID(userId)
@@ -140,20 +164,26 @@ class GatekeeperSdkFlutterPlugin :
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activityBinding = binding
+        binding.addRequestPermissionsResultListener(permissionsResultListener)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
         // The Activity is being recreated, for example on rotation. The new one arrives in
-        // onReattachedToActivityForConfigChanges.
+        // onReattachedToActivityForConfigChanges, and a waiting permission result goes to it.
+        activityBinding?.removeRequestPermissionsResultListener(permissionsResultListener)
         activityBinding = null
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activityBinding = binding
+        onAttachedToActivity(binding)
     }
 
     override fun onDetachedFromActivity() {
+        activityBinding?.removeRequestPermissionsResultListener(permissionsResultListener)
         activityBinding = null
+        // The Activity is gone, so the waiting requests will never get an answer.
+        pendingPermissionRequests.values.flatten().forEach { it.error(NO_ACTIVITY, NO_ACTIVITY_MESSAGE, null) }
+        pendingPermissionRequests.clear()
     }
 
     private fun Result.missingArgument(key: String) {
@@ -213,9 +243,56 @@ class GatekeeperSdkFlutterPlugin :
         }
     }
 
+    private fun askForPermissions(
+        group: PermissionGroup,
+        result: Result,
+    ) {
+        val activity =
+            activityBinding?.activity
+                ?: return result.error(NO_ACTIVITY, NO_ACTIVITY_MESSAGE, null)
+        if (isGranted(group)) {
+            return result.success(null)
+        }
+        val waiting = pendingPermissionRequests[group]
+        if (waiting != null) {
+            waiting.add(result)
+            return
+        }
+        pendingPermissionRequests[group] = mutableListOf(result)
+        activity.requestPermissions(group.permissions, group.requestCode)
+    }
+
+    private fun isGranted(group: PermissionGroup) =
+        group.permissions.all { applicationContext.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+
+    // Permissions and messages, on every Android version.
+    private enum class PermissionGroup(
+        val requestCode: Int,
+        val permissions: Array<String>,
+        val deniedMessage: String,
+    ) {
+        LOCATION(
+            4101,
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            "Location permission denied",
+        ),
+        STORAGE(
+            4102,
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE),
+            "Storage permission denied",
+        ),
+        MEDIA_AUDIO(
+            4103,
+            arrayOf(Manifest.permission.READ_MEDIA_AUDIO),
+            "Media-audio permission denied",
+        ),
+    }
+
     private companion object {
         // These names must match the Dart and iOS sides.
         const val METHOD_CHANNEL_NAME = "com.bespot/gatekeeper_sdk_flutter"
         const val EVENT_CHANNEL_NAME = "com.bespot/gatekeeper_sdk_flutter/subscribe"
+        const val NO_ACTIVITY = "NO_ACTIVITY"
+        const val NO_ACTIVITY_MESSAGE = "No Activity to show the permission dialog"
     }
 }

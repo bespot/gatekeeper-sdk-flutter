@@ -125,6 +125,20 @@ void main() {
       );
     });
 
+    test('converts the Android permission errors', () async {
+      nativeResponse = (_) => throw PlatformException(code: 'PERMISSION_DENIED', message: 'Location permission denied');
+      await expectLater(
+        platform.askForLocationPermissions(),
+        throwsA(isA<SafeSDKException>().having((e) => e.code, 'code', SafeSDKErrorCode.permissionDenied)),
+      );
+
+      nativeResponse = (_) => throw PlatformException(code: 'NO_ACTIVITY');
+      await expectLater(
+        platform.askForLocationPermissions(),
+        throwsA(isA<SafeSDKException>().having((e) => e.code, 'code', SafeSDKErrorCode.noActivity)),
+      );
+    });
+
     test('maps unknown error codes to SafeSDKErrorCode.unknownError', () async {
       nativeResponse = (_) => throw PlatformException(code: 'DEFAULT_UNKNOWN_ERROR');
 
