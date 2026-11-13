@@ -570,9 +570,11 @@ On Android:
 * An empty `accessToken` throws a `SafeSDKException` with `SafeSDKErrorCode.invalidArguments`.
 
 Initialize returns as soon as the SDK has started, and the SDK registers the device in the background.
-If the registration fails, for example because of an invalid access token, a wrong API key or wrong OAuth2 credentials,
+If the registration fails, for example because the device has no network connection when the app starts,
+or because of an invalid access token, a wrong API key or wrong OAuth2 credentials,
 the error is sent to the `subscribe` stream, if your app is listening at that moment.
 After that, `check` throws `notInitialized` until the app is restarted.
+The SDK does not retry the registration when the network connection comes back.
 
 #### Check on demand
 
