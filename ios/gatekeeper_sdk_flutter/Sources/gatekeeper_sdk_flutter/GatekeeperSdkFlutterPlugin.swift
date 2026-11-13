@@ -98,20 +98,27 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
     }
 
     private func check(result: @escaping FlutterResult) {
-        SafeSDK.sharedSafeSDK.check { checkResult in
+        // The SDK keeps this callback as its observer, so it can be called again
+        // with later periodic results. Reply to Flutter only once.
+        var replied = false
+        SafeSDK.sharedSafeSDK.check { [weak self] checkResult in
             DispatchQueue.main.async {
+                guard !replied else { return }
+                replied = true
                 switch checkResult {
                 case .success(let action):
                     result([
                         "type": Self.wireValue(of: action.actionType),
                         "signature": action.signature
                     ])
-                    case .failure(let error):
+                case .failure(let error):
                     result(FlutterError(code: Self.wireValue(of: error),
                                         message: Self.message(of: error),
-                                        details: nil
-                                       )
-                    )
+                                        details: nil))
+                }
+                // check replaced the subscribe observer. Give it back to an active stream.
+                if self?.eventSink != nil {
+                    self?.subscribeToSdk()
                 }
             }
         }
@@ -207,6 +214,14 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
 
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         eventSink = events
+        subscribeToSdk()
+        return nil
+    }
+
+    /// Registers the stream handler as the SDK observer.
+    /// The SDK keeps a single observer, shared with `check`, so `check` calls this again
+    /// after its own reply to give the observer back to an active stream.
+    private func subscribeToSdk() {
         SafeSDK.sharedSafeSDK.subscribe { [weak self] subscribeResult in
             DispatchQueue.main.async {
                 guard let eventSink = self?.eventSink else { return }
@@ -221,7 +236,6 @@ public class GatekeeperSdkFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamH
                 }
             }
         }
-        return nil
     }
 
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {

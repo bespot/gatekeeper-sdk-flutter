@@ -115,6 +115,9 @@ Dart maps any unknown `type` to `ActionType.unknown` and any unknown `code` to `
 The bridge registers a `FlutterStreamHandler` on the `EventChannel`:
 - `onListen(withArguments:eventSink:)` → the bridge calls the SDK's `subscribe`.
 - `onCancel(withArguments:)` → the bridge calls the SDK's `unsubscribe`.
+- The SDK keeps a single observer, shared by `subscribe` and `check`, so `check` replaces the stream's observer.
+  After `check` replies, if the stream is active, the bridge calls the SDK's `subscribe` again with the same handler.
+  The SDK may call the `check` callback again with later periodic results, so the bridge replies to `check` only once.
 - Each result is sent as `eventSink(<action map>)`.
 - Each failure is sent as `eventSink(FlutterError(code:message:details:))`. The stream stays open; the Dart side decides whether to cancel.
 - Send events on the main thread.

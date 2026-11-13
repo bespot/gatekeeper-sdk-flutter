@@ -209,6 +209,7 @@ await SafeSDK.setAccessToken(newAccessToken);
 ```
 
 An empty token is ignored: `setAccessToken` does not throw, and the SDK keeps the previous token.
+If a subscription is active, its stream emits a `SafeSDKException` with `SafeSDKErrorCode.invalidToken`.
 
 To initialize in `main()`, before `runApp()`, call `WidgetsFlutterBinding.ensureInitialized()` first.
 Plugins cannot be called before Flutter is ready:
