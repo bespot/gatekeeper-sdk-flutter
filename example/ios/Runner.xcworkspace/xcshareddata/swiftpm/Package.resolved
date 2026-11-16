@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "gatekeeper-sdk-ios-release",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bespot/gatekeeper-sdk-ios-release",
+      "state" : {
+        "revision" : "1b3e14d735c9e2912162ea66bb954f87df1c7094",
+        "version" : "1.2.1"
+      }
+    }
+  ],
+  "version" : 2
+}
