@@ -48,6 +48,8 @@ android {
 
     defaultConfig {
         minSdk = 24
+        // R8 rules for the release builds of apps that use this plugin.
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     testOptions {

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The SDK and this plugin read the credentials by name, so the resource shrinker
+     cannot see that they are used. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/antifraud_sdk_*" />
