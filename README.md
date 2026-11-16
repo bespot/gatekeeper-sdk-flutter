@@ -618,7 +618,7 @@ The following codes behave differently on Android:
 | `SafeSDKErrorCode` | On Android |
 |---|---|
 | `notInitialized` | A method was called before `initializeWithAccessToken` in the access token mode, or the device registration failed. In the second case, restart the app. |
-| `alreadyInitialized` | `initializeWithAccessToken` was called again after the device registration succeeded. The call itself does not throw: the error is sent to the `subscribe` stream and to a `check` that is waiting at that moment. |
+| `alreadyInitialized` | `initializeWithAccessToken` was called after the SDK was already initialized, by an earlier call or by the OAuth2 mode at app launch. The call itself does not throw: the error is sent to the `subscribe` stream and to a `check` that is waiting at that moment. |
 | `invalidArguments` | `antifraud_sdk_api_url` or `antifraud_sdk_key` is missing or empty, the access token is empty, or a required argument is missing. |
 | `unimplemented` | `initialize` was called. See [Platform differences](#platform-differences). |
 | `permissionDenied` | Android only. The user denied a permission. See [Permissions](#permissions-1). |
