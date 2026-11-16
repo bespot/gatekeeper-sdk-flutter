@@ -33,6 +33,23 @@ void main() {
         ),
       );
     },
-    skip: defaultTargetPlatform != TargetPlatform.iOS, // The Android bridge is not implemented yet.
+    // On Android the SDK initializes itself at app launch when OAuth2 credentials are set,
+    // so check does not throw notInitialized there.
+    skip: defaultTargetPlatform != TargetPlatform.iOS,
+  );
+
+  // Goes through the MethodChannel and the Android bridge, and back.
+  // Needs no credentials and no network.
+  testWidgets(
+    'initialize throws unimplemented on Android',
+    (WidgetTester tester) async {
+      await expectLater(
+        SafeSDK.initialize(),
+        throwsA(
+          isA<SafeSDKException>().having((e) => e.code, 'code', SafeSDKErrorCode.unimplemented),
+        ),
+      );
+    },
+    skip: defaultTargetPlatform != TargetPlatform.android,
   );
 }

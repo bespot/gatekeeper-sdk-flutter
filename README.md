@@ -537,7 +537,9 @@ Both calls ask for the same permissions on every Android version, so on some ver
 | `askForStoragePermissions` | Android 10 (API level 29) and later |
 | `askForMediaAudioPermissions` | Android 12L (API level 32) and earlier |
 
-In these cases Android usually does not show a dialog.
+`askForMediaAudioPermissions` throws right away, without a dialog.
+On Android 10 to 12L, `askForStoragePermissions` can still show a dialog,
+but it throws `permissionDenied` even if the user allows access.
 
 ### Usage
 
