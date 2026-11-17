@@ -167,6 +167,12 @@ Dart shares a single native subscription between all listeners. `onCancel` arriv
 
 There is no `unsubscribe` method on the `MethodChannel`. Apps stop receiving results by cancelling the stream subscription.
 
+### iOS
+
+The SDK keeps a single observer, shared by `subscribe` and `check`, so `check` replaces the stream's observer:
+- After `check` replies, if the stream is active, the bridge calls the SDK's `subscribe` again with the same handler.
+- The SDK may call the `check` callback again with later periodic results, so the bridge replies to `check` only once.
+
 ### Android
 
 The Android SDK keeps a single observer for `check` and `subscribe`, so the bridge uses one observer for both:
