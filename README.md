@@ -18,8 +18,10 @@ dependencies:
   gatekeeper_sdk_flutter:
     git:
       url: https://github.com/bespot/gatekeeper-sdk-flutter
-      ref: the_release_tag
+      ref: 1.0.0
 ```
+
+`ref` is the release tag. The available versions are listed in the repository's [Releases](https://github.com/bespot/gatekeeper-sdk-flutter/releases).
 
 Then run:
 
