@@ -1,1 +1,64 @@
-TODO: Add your license here.
+Bespot Gatekeeper SDK Flutter Plugin — Integrator License
+
+Copyright (c) Bespot. All rights reserved.
+
+1. Grant
+
+   Subject to the terms below, Bespot grants you a non-exclusive,
+   non-transferable license to use the Gatekeeper SDK Flutter plugin
+   source code distributed in this repository (the "Plugin") solely to
+   integrate your applications with Bespot Gatekeeper services for which
+   you hold valid credentials (API key, application identifiers, and
+   access tokens issued under your agreement with Bespot).
+
+   The Plugin depends on the Bespot GatekeeperSDK for iOS and for
+   Android (the "SDKs"). The SDKs are not part of this repository and
+   are distributed separately under their own license terms. This
+   license grants no rights to the SDKs.
+
+2. Restrictions
+
+   You may not:
+
+   (a) redistribute, sublicense, sell, or publicly host the Plugin for
+       use by third parties unrelated to your own integrated
+       applications, except as built into your application and
+       distributed solely to support your end users' use of your
+       application;
+
+   (b) remove or alter proprietary notices in the Plugin or
+       documentation;
+
+   (c) use the Plugin in violation of applicable law or your agreement
+       with Bespot.
+
+3. Credentials and security
+
+   You are responsible for safeguarding API keys, client secrets, and
+   tokens. Client secrets and long-lived credentials must not be
+   exposed in browser-side code. You must comply with the security
+   guidance in the integration documentation.
+
+4. No warranty
+
+   THE PLUGIN AND DOCUMENTATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF
+   ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+   NON-INFRINGEMENT.
+
+5. Limitation of liability
+
+   TO THE MAXIMUM EXTENT PERMITTED BY LAW, BESPOT SHALL NOT BE LIABLE
+   FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE
+   DAMAGES, OR ANY LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM YOUR
+   USE OF THE PLUGIN.
+
+6. Termination
+
+   This license terminates automatically if you breach these terms.
+   Upon termination you must cease use of the Plugin and destroy copies
+   in your possession.
+
+7. Contact
+
+   For licensing questions, contact your Bespot account representative.
