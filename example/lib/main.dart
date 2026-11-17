@@ -127,7 +127,6 @@ class _SafeSDKDemoPageState extends State<SafeSDKDemoPage> {
         onError: (Object e) {
           debugPrint('SafeSDK subscribe failed: $e');
           _showResult(_errorText(e));
-          _unsubscribe();
         },
       );
     });
