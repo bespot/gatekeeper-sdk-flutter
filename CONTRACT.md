@@ -97,6 +97,7 @@ Errors are sent as `FlutterError(code:message:details:)` on iOS and `Result.erro
 | method not supported on this platform (bridge only) | `UNIMPLEMENTED` | See [Platform-specific methods](#platform-specific-methods) |
 | permission not granted (Android bridge only) | `PERMISSION_DENIED` | See [Permissions](#permissions) |
 | no Activity to show a permission dialog (Android bridge only) | `NO_ACTIVITY` | `No Activity to show the permission dialog` |
+| Flutter engine detached while `check` was waiting (Android bridge only) | `ENGINE_DETACHED` | `The Flutter engine was detached` |
 | anything else | `DEFAULT_UNKNOWN_ERROR` | `Unknown Error (see support section)` |
 
 `message` is the text in the table above and must be the same on every platform.
@@ -142,7 +143,8 @@ On Android, the `askFor*` methods wait for the user's answer:
 - Storage is always denied on Android 10 and later, and media audio below Android 13.
 - If all permissions of the group are already granted, they reply `null` without a dialog.
 - A second call for the same group while its dialog is open waits and gets the same answer.
-- Without an Activity, they reply `NO_ACTIVITY`. Calls that are waiting also get `NO_ACTIVITY` when the Activity is destroyed.
+- Without an Activity, they reply `NO_ACTIVITY`. Calls that are waiting also get `NO_ACTIVITY` when the Activity is destroyed
+  or the Flutter engine is detached.
   A configuration change, such as a rotation, does not cancel them.
 
 ## Unknown values
@@ -180,6 +182,10 @@ The Android SDK keeps a single observer for `check` and `subscribe`, so the brid
   Stream listeners therefore also receive the results of `check`.
 - `onCancel` calls the SDK's `unsubscribe` only after the waiting `check` calls are answered.
   The SDK applies `unsubscribe` and `check` without a fixed order, so a `check` called right after the stream is cancelled may not be answered.
+- When the Flutter engine is detached, the bridge replies `ENGINE_DETACHED` to every waiting `check` and calls the SDK's `unsubscribe`.
+  The bridge supports one Flutter engine at a time: if another engine is attached at that moment, for example one started
+  by a background-task package, its stream stops receiving results.
+  The SDK keeps running its checks on Activity resume after `unsubscribe`, but no plugin receives them.
 
 ## SDK results outside the method call (Android)
 

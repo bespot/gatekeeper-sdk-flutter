@@ -625,7 +625,8 @@ The following codes behave differently on Android:
 | `invalidArguments` | `antifraud_sdk_api_url` or `antifraud_sdk_key` is missing or empty, the access token is empty, or a required argument is missing. |
 | `unimplemented` | `initialize` was called. See [Platform differences](#platform-differences). |
 | `permissionDenied` | Android only. The user denied a permission. See [Permissions](#permissions-1). |
-| `noActivity` | Android only. A permission was requested without a visible screen. See [Permissions](#permissions-1). |
+| `noActivity` | Android only. A permission was requested without a visible screen, or the screen closed while the request was waiting. See [Permissions](#permissions-1). |
+| `engineDetached` | Android only. The Flutter engine was detached while `check` was waiting, for example when the screen was closed. |
 
 Unlike on iOS, errors of the device registration, for example `invalidToken`, `authError` or `noActiveApiKey`,
 are sent to the `subscribe` stream if your app is listening at that moment. See [Initialize](#initialize-1).

@@ -92,7 +92,20 @@ class GatekeeperSdkFlutterPlugin :
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
         eventSink = null
+
+        // Dart is gone, so every waiting call gets an error now. Otherwise its future never completes.
+        val checks = pendingChecks.toList()
         pendingChecks.clear()
+        checks.forEach { it.error(ENGINE_DETACHED, ENGINE_DETACHED_MESSAGE, null) }
+        val permissionRequests = pendingPermissionRequests.values.flatten()
+        pendingPermissionRequests.clear()
+        permissionRequests.forEach { it.error(NO_ACTIVITY, NO_ACTIVITY_MESSAGE, null) }
+
+        // The SDK keeps its observer after this plugin is gone, and runs checks into it on every
+        // Activity resume, so unsubscribe here. A late SDK result must not unsubscribe again,
+        // because by then a new engine may have subscribed.
+        unsubscribeWhenChecksFinish = false
+        SafeSdk.unsubscribe()
     }
 
     override fun onMethodCall(
@@ -294,5 +307,7 @@ class GatekeeperSdkFlutterPlugin :
         const val EVENT_CHANNEL_NAME = "com.bespot/gatekeeper_sdk_flutter/subscribe"
         const val NO_ACTIVITY = "NO_ACTIVITY"
         const val NO_ACTIVITY_MESSAGE = "No Activity to show the permission dialog"
+        const val ENGINE_DETACHED = "ENGINE_DETACHED"
+        const val ENGINE_DETACHED_MESSAGE = "The Flutter engine was detached"
     }
 }
