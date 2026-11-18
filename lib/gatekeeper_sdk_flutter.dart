@@ -45,7 +45,8 @@ class SafeSDK {
   /// Throws [SafeSDKException] on failure.
   ///
   /// On Android the result is also emitted on [subscribe], and the call may not complete
-  /// while the device is being registered, so add a timeout.
+  /// while the device is being registered, so add a timeout. If the Flutter engine is
+  /// detached while the call is waiting, it throws [SafeSDKErrorCode.engineDetached].
   static Future<SafeSDKAction> check() => _platform.check();
 
   /// Results of the periodic checks. Call an initialize method first.
@@ -61,7 +62,8 @@ class SafeSDK {
   /// On iOS it requests "When In Use" permission and returns without waiting for the user's answer.
   /// On Android it waits for the answer and throws [SafeSDKException] with
   /// [SafeSDKErrorCode.permissionDenied] if the user denies it or grants only approximate
-  /// location, or [SafeSDKErrorCode.noActivity] if there is no Activity to show the dialog.
+  /// location, or [SafeSDKErrorCode.noActivity] if there is no Activity to show the dialog
+  /// or the Activity or Flutter engine goes away while the call is waiting.
   static Future<void> askForLocationPermissions() => _platform.askForLocationPermissions();
 
   /// Requests the storage permission used for the device seed (Android only).
