@@ -102,10 +102,10 @@ class GatekeeperSdkFlutterPlugin :
         permissionRequests.forEach { it.error(NO_ACTIVITY, NO_ACTIVITY_MESSAGE, null) }
 
         // The SDK keeps its observer after this plugin is gone, and runs checks into it on every
-        // Activity resume, so unsubscribe here. A late SDK result must not unsubscribe again,
-        // because by then a new engine may have subscribed.
+        // Activity resume, so unsubscribe here if the SDK holds this plugin's observer. A late SDK
+        // result must not unsubscribe again, because by then a new engine may have subscribed.
         unsubscribeWhenChecksFinish = false
-        SafeSdk.unsubscribe()
+        unsubscribeIfOwner()
     }
 
     override fun onMethodCall(
@@ -133,6 +133,7 @@ class GatekeeperSdkFlutterPlugin :
             }
             "check" -> {
                 pendingChecks.add(result)
+                sdkObserverOwner = this
                 SafeSdk.check(sdkObserver)
             }
             "askForLocationPermissions" -> askForPermissions(PermissionGroup.LOCATION, result)
@@ -163,13 +164,14 @@ class GatekeeperSdkFlutterPlugin :
     ) {
         eventSink = events
         unsubscribeWhenChecksFinish = false
+        sdkObserverOwner = this
         SafeSdk.subscribe(sdkObserver)
     }
 
     override fun onCancel(arguments: Any?) {
         eventSink = null
         if (pendingChecks.isEmpty()) {
-            SafeSdk.unsubscribe()
+            unsubscribeIfOwner()
         } else {
             unsubscribeWhenChecksFinish = true
         }
@@ -252,6 +254,15 @@ class GatekeeperSdkFlutterPlugin :
     private fun unsubscribeIfWaiting() {
         if (unsubscribeWhenChecksFinish && pendingChecks.isEmpty()) {
             unsubscribeWhenChecksFinish = false
+            unsubscribeIfOwner()
+        }
+    }
+
+    // Another engine's plugin may have set its own observer since, for example a background engine
+    // that calls check. Unsubscribing then would stop that engine's results.
+    private fun unsubscribeIfOwner() {
+        if (sdkObserverOwner === this) {
+            sdkObserverOwner = null
             SafeSdk.unsubscribe()
         }
     }
@@ -309,5 +320,9 @@ class GatekeeperSdkFlutterPlugin :
         const val NO_ACTIVITY_MESSAGE = "No Activity to show the permission dialog"
         const val ENGINE_DETACHED = "ENGINE_DETACHED"
         const val ENGINE_DETACHED_MESSAGE = "The Flutter engine was detached"
+
+        // The plugin instance whose observer the SDK holds. The SDK keeps one observer for the
+        // whole process, and every Flutter engine has its own plugin instance. Main thread only.
+        var sdkObserverOwner: GatekeeperSdkFlutterPlugin? = null
     }
 }

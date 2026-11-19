@@ -182,10 +182,14 @@ The Android SDK keeps a single observer for `check` and `subscribe`, so the brid
   Stream listeners therefore also receive the results of `check`.
 - `onCancel` calls the SDK's `unsubscribe` only after the waiting `check` calls are answered.
   The SDK applies `unsubscribe` and `check` without a fixed order, so a `check` called right after the stream is cancelled may not be answered.
-- When the Flutter engine is detached, the bridge replies `ENGINE_DETACHED` to every waiting `check` and calls the SDK's `unsubscribe`.
-  The bridge supports one Flutter engine at a time: if another engine is attached at that moment, for example one started
-  by a background-task package, its stream stops receiving results.
-  The SDK keeps running its checks on Activity resume after `unsubscribe`, but no plugin receives them.
+- When the Flutter engine is detached, the bridge replies `ENGINE_DETACHED` to every waiting `check`, and calls the SDK's `unsubscribe`
+  if the SDK holds its observer (see the next point). The SDK keeps running its checks on Activity resume after `unsubscribe`, but no plugin receives them.
+- Every Flutter engine has its own plugin instance, but the SDK keeps one observer for the whole process.
+  On engine detach and in `onCancel`, the bridge calls `unsubscribe` only if its engine was the last to call `check` or `subscribe`.
+  An engine that never calls `check` or `subscribe`, for example one started by a background-task package,
+  does not stop another engine's stream when it is detached.
+- Two engines that both call `check` or `subscribe` still share the SDK's single observer, so the last one to call replaces
+  the other's observer. This is not supported.
 
 ## SDK results outside the method call (Android)
 
