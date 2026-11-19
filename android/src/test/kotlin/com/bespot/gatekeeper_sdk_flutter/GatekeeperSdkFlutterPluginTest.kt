@@ -1,11 +1,22 @@
 package com.bespot.gatekeeper_sdk_flutter
 
+import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.res.Resources
 import com.bespot.shared.common.models.Action
 import com.bespot.shared.core.Failure
+import com.bespot.shared.core.FraudulentCheckObserver
+import com.bespot.shared.core.SafeSdk
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.EventChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.mockito.Mockito
@@ -20,7 +31,34 @@ import kotlin.test.assertEquals
  * you can run them directly from IDEs that support JUnit such as Android Studio.
  */
 
+/*
+ * Follows the SDK's observer the way the SDK does. subscribe and unsubscribe emit the observer on one
+ * flow, and check emits it on another. The initialized SDK collects both and keeps the last one as its
+ * observer. The SDK is not initialized in unit tests, so this collects both flows instead.
+ * The flow getters are internal to the SDK, so reflection is used.
+ */
+private object SdkObserverMirror {
+    @Volatile
+    var observer: FraudulentCheckObserver? = null
+        private set
+
+    init {
+        // Undispatched, so both collectors are subscribed before any test calls the SDK.
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        for (getter in listOf("getCheckObserver\$shared_release", "getDetectTriggerWithCallback\$shared_release")) {
+            @Suppress("UNCHECKED_CAST")
+            val flow = SafeSdk::class.java.getMethod(getter).invoke(SafeSdk) as SharedFlow<FraudulentCheckObserver>
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { flow.collect { observer = it } }
+        }
+    }
+}
+
 internal class GatekeeperSdkFlutterPluginTest {
+    init {
+        // Starts the mirror before the test calls the SDK.
+        SdkObserverMirror.observer
+    }
+
     @Test
     fun onMethodCall_unknownMethod_returnsNotImplemented() {
         val plugin = GatekeeperSdkFlutterPlugin()
@@ -129,6 +167,155 @@ internal class GatekeeperSdkFlutterPluginTest {
 
             Mockito.verify(result).error("NO_ACTIVITY", "No Activity to show the permission dialog", null)
         }
+    }
+
+    @Test
+    fun engineDetach_repliesToWaitingChecks() {
+        val binding = engineBinding()
+        val plugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(binding) }
+        val result: MethodChannel.Result = Mockito.mock(MethodChannel.Result::class.java)
+        plugin.onMethodCall(MethodCall("check", null), result)
+
+        plugin.onDetachedFromEngine(binding)
+
+        // The Dart future must complete, so the waiting check gets an error.
+        Mockito.verify(result).error("ENGINE_DETACHED", "The Flutter engine was detached", null)
+    }
+
+    @Test
+    fun engineDetach_repliesToWaitingPermissionRequests() {
+        val binding = engineBinding()
+        Mockito.`when`(binding.applicationContext.checkSelfPermission(Mockito.anyString()))
+            .thenReturn(PackageManager.PERMISSION_DENIED)
+        val plugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(binding) }
+        val activityBinding = Mockito.mock(ActivityPluginBinding::class.java)
+        Mockito.`when`(activityBinding.activity).thenReturn(Mockito.mock(Activity::class.java))
+        plugin.onAttachedToActivity(activityBinding)
+        val result: MethodChannel.Result = Mockito.mock(MethodChannel.Result::class.java)
+        plugin.onMethodCall(MethodCall("askForLocationPermissions", null), result)
+
+        // The engine goes away without onDetachedFromActivity.
+        plugin.onDetachedFromEngine(binding)
+
+        Mockito.verify(result).error("NO_ACTIVITY", "No Activity to show the permission dialog", null)
+    }
+
+    @Test
+    fun engineDetach_unsubscribesFromTheSdk() {
+        val binding = engineBinding()
+        val plugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(binding) }
+        plugin.onListen(null, Mockito.mock(EventChannel.EventSink::class.java))
+        // subscribe runs in an SDK coroutine, so wait until the SDK holds this plugin's observer.
+        // The SDK is shared by all tests, so an observer left by another test does not count.
+        val pluginObserver = GatekeeperSdkFlutterPlugin::class.java.getDeclaredField("sdkObserver")
+            .apply { isAccessible = true }
+            .get(plugin)
+        assertEquals(pluginObserver, awaitSdkObserver { it === pluginObserver })
+
+        plugin.onDetachedFromEngine(binding)
+
+        assertEquals(FraudulentCheckObserver.empty, awaitSdkObserver { it == FraudulentCheckObserver.empty })
+    }
+
+    @Test
+    fun engineDetach_afterACheckWithoutStream_unsubscribesFromTheSdk() {
+        val binding = engineBinding()
+        val plugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(binding) }
+        plugin.onMethodCall(MethodCall("check", null), Mockito.mock(MethodChannel.Result::class.java))
+        // check also leaves this plugin's observer in the SDK.
+        assertEquals(observerOf(plugin), awaitSdkObserver { it === observerOf(plugin) })
+
+        plugin.onDetachedFromEngine(binding)
+
+        assertEquals(FraudulentCheckObserver.empty, awaitSdkObserver { it == FraudulentCheckObserver.empty })
+    }
+
+    @Test
+    fun engineDetach_ofAnEngineThatNeverUsedTheSdk_keepsTheOtherEnginesObserver() {
+        val mainBinding = engineBinding()
+        val mainPlugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(mainBinding) }
+        mainPlugin.onListen(null, Mockito.mock(EventChannel.EventSink::class.java))
+        assertEquals(observerOf(mainPlugin), awaitSdkObserver { it === observerOf(mainPlugin) })
+        // For example a background engine, which also gets the plugin through the GeneratedPluginRegistrant.
+        val backgroundBinding = engineBinding()
+        val backgroundPlugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(backgroundBinding) }
+
+        backgroundPlugin.onDetachedFromEngine(backgroundBinding)
+
+        assertSdkObserverStays(observerOf(mainPlugin))
+        mainPlugin.onDetachedFromEngine(mainBinding)
+    }
+
+    @Test
+    fun cancel_afterAnotherEngineChecked_keepsThatEnginesObserver() {
+        val firstBinding = engineBinding()
+        val firstPlugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(firstBinding) }
+        firstPlugin.onListen(null, Mockito.mock(EventChannel.EventSink::class.java))
+        assertEquals(observerOf(firstPlugin), awaitSdkObserver { it === observerOf(firstPlugin) })
+        val secondBinding = engineBinding()
+        val secondPlugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(secondBinding) }
+        secondPlugin.onMethodCall(MethodCall("check", null), Mockito.mock(MethodChannel.Result::class.java))
+        assertEquals(observerOf(secondPlugin), awaitSdkObserver { it === observerOf(secondPlugin) })
+
+        firstPlugin.onCancel(null)
+
+        assertSdkObserverStays(observerOf(secondPlugin))
+        secondPlugin.onDetachedFromEngine(secondBinding)
+        firstPlugin.onDetachedFromEngine(firstBinding)
+    }
+
+    @Test
+    fun engineDetach_thenANewEngine_canSubscribeAgain() {
+        val oldBinding = engineBinding()
+        val oldPlugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(oldBinding) }
+        oldPlugin.onListen(null, Mockito.mock(EventChannel.EventSink::class.java))
+        assertEquals(observerOf(oldPlugin), awaitSdkObserver { it === observerOf(oldPlugin) })
+        oldPlugin.onDetachedFromEngine(oldBinding)
+        assertEquals(FraudulentCheckObserver.empty, awaitSdkObserver { it == FraudulentCheckObserver.empty })
+
+        val newBinding = engineBinding()
+        val newPlugin = GatekeeperSdkFlutterPlugin().also { it.onAttachedToEngine(newBinding) }
+        newPlugin.onListen(null, Mockito.mock(EventChannel.EventSink::class.java))
+
+        assertEquals(observerOf(newPlugin), awaitSdkObserver { it === observerOf(newPlugin) })
+        newPlugin.onDetachedFromEngine(newBinding)
+    }
+
+    // The observer a plugin gives to the SDK. It is private to the plugin, so reflection is used.
+    private fun observerOf(plugin: GatekeeperSdkFlutterPlugin): FraudulentCheckObserver =
+        GatekeeperSdkFlutterPlugin::class.java.getDeclaredField("sdkObserver")
+            .apply { isAccessible = true }
+            .get(plugin) as FraudulentCheckObserver
+
+    // The SDK applies unsubscribe in a coroutine, so check for a while that the observer does not change.
+    private fun assertSdkObserverStays(expected: FraudulentCheckObserver) {
+        val deadline = System.currentTimeMillis() + 300
+        while (System.currentTimeMillis() < deadline) {
+            assertEquals(expected, sdkObserver())
+            Thread.sleep(20)
+        }
+    }
+
+    // The SDK's current observer, as SdkObserverMirror sees it.
+    private fun sdkObserver(): FraudulentCheckObserver? = SdkObserverMirror.observer
+
+    // Waits up to 2 seconds for the SDK's observer to match, then returns the last value seen.
+    private fun awaitSdkObserver(matches: (FraudulentCheckObserver?) -> Boolean): FraudulentCheckObserver? {
+        val deadline = System.currentTimeMillis() + 2_000
+        var observer = sdkObserver()
+        while (!matches(observer) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+            observer = sdkObserver()
+        }
+        return observer
+    }
+
+    private fun engineBinding(): FlutterPlugin.FlutterPluginBinding {
+        val context = Mockito.mock(Context::class.java)
+        val binding = Mockito.mock(FlutterPlugin.FlutterPluginBinding::class.java)
+        Mockito.`when`(binding.applicationContext).thenReturn(context)
+        Mockito.`when`(binding.binaryMessenger).thenReturn(Mockito.mock(BinaryMessenger::class.java))
+        return binding
     }
 
     private fun callInitializeWithAccessToken(

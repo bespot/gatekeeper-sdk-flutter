@@ -139,6 +139,15 @@ void main() {
       );
     });
 
+    test('converts the Android engine detach error', () async {
+      nativeResponse = (_) => throw PlatformException(code: 'ENGINE_DETACHED', message: 'The Flutter engine was detached');
+
+      await expectLater(
+        platform.check(),
+        throwsA(isA<SafeSDKException>().having((e) => e.code, 'code', SafeSDKErrorCode.engineDetached)),
+      );
+    });
+
     test('maps unknown error codes to SafeSDKErrorCode.unknownError', () async {
       nativeResponse = (_) => throw PlatformException(code: 'DEFAULT_UNKNOWN_ERROR');
 

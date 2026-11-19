@@ -92,7 +92,20 @@ class GatekeeperSdkFlutterPlugin :
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
         eventSink = null
+
+        // Dart is gone, so every waiting call gets an error now. Otherwise its future never completes.
+        val checks = pendingChecks.toList()
         pendingChecks.clear()
+        checks.forEach { it.error(ENGINE_DETACHED, ENGINE_DETACHED_MESSAGE, null) }
+        val permissionRequests = pendingPermissionRequests.values.flatten()
+        pendingPermissionRequests.clear()
+        permissionRequests.forEach { it.error(NO_ACTIVITY, NO_ACTIVITY_MESSAGE, null) }
+
+        // The SDK keeps its observer after this plugin is gone, and runs checks into it on every
+        // Activity resume, so unsubscribe here if the SDK holds this plugin's observer. A late SDK
+        // result must not unsubscribe again, because by then a new engine may have subscribed.
+        unsubscribeWhenChecksFinish = false
+        unsubscribeIfOwner()
     }
 
     override fun onMethodCall(
@@ -120,6 +133,7 @@ class GatekeeperSdkFlutterPlugin :
             }
             "check" -> {
                 pendingChecks.add(result)
+                sdkObserverOwner = this
                 SafeSdk.check(sdkObserver)
             }
             "askForLocationPermissions" -> askForPermissions(PermissionGroup.LOCATION, result)
@@ -150,13 +164,14 @@ class GatekeeperSdkFlutterPlugin :
     ) {
         eventSink = events
         unsubscribeWhenChecksFinish = false
+        sdkObserverOwner = this
         SafeSdk.subscribe(sdkObserver)
     }
 
     override fun onCancel(arguments: Any?) {
         eventSink = null
         if (pendingChecks.isEmpty()) {
-            SafeSdk.unsubscribe()
+            unsubscribeIfOwner()
         } else {
             unsubscribeWhenChecksFinish = true
         }
@@ -239,6 +254,15 @@ class GatekeeperSdkFlutterPlugin :
     private fun unsubscribeIfWaiting() {
         if (unsubscribeWhenChecksFinish && pendingChecks.isEmpty()) {
             unsubscribeWhenChecksFinish = false
+            unsubscribeIfOwner()
+        }
+    }
+
+    // Another engine's plugin may have set its own observer since, for example a background engine
+    // that calls check. Unsubscribing then would stop that engine's results.
+    private fun unsubscribeIfOwner() {
+        if (sdkObserverOwner === this) {
+            sdkObserverOwner = null
             SafeSdk.unsubscribe()
         }
     }
@@ -294,5 +318,11 @@ class GatekeeperSdkFlutterPlugin :
         const val EVENT_CHANNEL_NAME = "com.bespot/gatekeeper_sdk_flutter/subscribe"
         const val NO_ACTIVITY = "NO_ACTIVITY"
         const val NO_ACTIVITY_MESSAGE = "No Activity to show the permission dialog"
+        const val ENGINE_DETACHED = "ENGINE_DETACHED"
+        const val ENGINE_DETACHED_MESSAGE = "The Flutter engine was detached"
+
+        // The plugin instance whose observer the SDK holds. The SDK keeps one observer for the
+        // whole process, and every Flutter engine has its own plugin instance. Main thread only.
+        var sdkObserverOwner: GatekeeperSdkFlutterPlugin? = null
     }
 }
