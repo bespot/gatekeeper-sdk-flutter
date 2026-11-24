@@ -98,6 +98,7 @@ Errors are sent as `FlutterError(code:message:details:)` on iOS and `Result.erro
 | permission not granted (Android bridge only) | `PERMISSION_DENIED` | See [Permissions](#permissions) |
 | no Activity to show a permission dialog (Android bridge only) | `NO_ACTIVITY` | `No Activity to show the permission dialog` |
 | Flutter engine detached while `check` was waiting (Android bridge only) | `ENGINE_DETACHED` | `The Flutter engine was detached` |
+| no SDK result within 25 seconds of the start of the SDK check (Android bridge only) | `CHECK_TIMEOUT` | `The SDK did not answer the check within 25 seconds` |
 | anything else | `DEFAULT_UNKNOWN_ERROR` | `Unknown Error (see support section)` |
 
 `message` is the text in the table above and must be the same on every platform.
@@ -178,7 +179,26 @@ The SDK keeps a single observer, shared by `subscribe` and `check`, so `check` r
 ### Android
 
 The Android SDK keeps a single observer for `check` and `subscribe`, so the bridge uses one observer for both:
-- Every SDK result answers all `check` calls that are waiting, and is also sent to the stream if Dart is listening.
+- The bridge runs one SDK check at a time, in rounds:
+  - A `check` call made while no SDK check is running starts a round: the bridge calls the SDK's `check`.
+  - A `check` call made while an SDK check is running does not call the SDK. It waits for the next round, which
+    starts when the current round finishes. All calls made during one round share the next round.
+    So every round has its own SDK check, started after all calls of the round were made.
+  - The first SDK result after a round starts answers every call of the round. The SDK does not say which check a result
+    belongs to, so this can also be a result of an SDK check that started before the round: a periodic or foreground
+    check, or the check of an earlier round whose round was already answered by another result. It can also be an error
+    from another call such as `setAccessToken`. The bridge therefore cannot promise that a result comes from the round's own SDK check.
+  - The stream receives one result per SDK check, so calls that share a round add one result to the stream, not one per call.
+  - A Dart `.timeout()` shorter than the bridge timeout does not end the round. A `check` called after it joins the next round
+    and waits for the abandoned round to finish first.
+  - If the SDK sends no result within 25 seconds of the start of the round, the bridge replies `CHECK_TIMEOUT`
+    to every call of the round and starts the next round. The timeout is not sent to the stream.
+    A call that joined the next round can therefore wait up to about 50 seconds: up to 25 seconds for the running round
+    and up to 25 seconds for its own.
+    It is longer than the SDK's own network request timeout (about 20 seconds), so a slow network request ends with
+    the SDK's error first. The bridge timeout covers an SDK that sends no result at all, for example when it has no checks to run.
+    A result of the timed-out SDK check that arrives later answers the round that is running at that moment, if any.
+- Every SDK result is also sent to the stream if Dart is listening, whether or not it answers a `check`.
   Stream listeners therefore also receive the results of `check`.
 - `onCancel` calls the SDK's `unsubscribe` only after the waiting `check` calls are answered.
   The SDK applies `unsubscribe` and `check` without a fixed order, so a `check` called right after the stream is cancelled may not be answered.
@@ -189,7 +209,8 @@ The Android SDK keeps a single observer for `check` and `subscribe`, so the brid
   An engine that never calls `check` or `subscribe`, for example one started by a background-task package,
   does not stop another engine's stream when it is detached.
 - Two engines that both call `check` or `subscribe` still share the SDK's single observer, so the last one to call replaces
-  the other's observer. This is not supported.
+  the other's observer. This is not supported. Each engine runs its own rounds, so their SDK checks can run at the same time,
+  and a waiting `check` of the engine whose observer was replaced gets `CHECK_TIMEOUT`.
 
 ## SDK results outside the method call (Android)
 
@@ -199,9 +220,13 @@ and the SDK sends the result to its observer, so it reaches the stream (and any 
   the device is registered. A registration failure (for example `INVALID_TOKEN`, `NO_ACTIVE_API_KEY`, `AUTH_ERROR`, or no network)
   is sent to the stream. After it, `check` replies `NOT_INITIALIZED` until the app restarts; the SDK does not retry.
   The first checks after a successful registration are also sent to the stream.
+  A `check` called while the device is being registered gets no result of its own, because the SDK has no checks yet.
+  It is answered by the result of the SDK's first check after the registration, or by the registration failure.
 - **`ALREADY_INITIALIZED`.** `initializeWithAccessToken` after the SDK is initialized.
 - **`INVALID_TOKEN` from `setAccessToken`.** The SDK rejects an invalid token, such as an empty one, and keeps the previous one.
 
 The SDK also runs checks on its own (periodically and when the app returns to the foreground) and sends the results to the stream.
 
-`check` can stay unanswered when the SDK has no checks to run. The bridge has no timeout; apps add one with `.timeout()`.
+The SDK may send no result to `check`, for example when it has no checks to run and no registration is running that
+would send one, or when the registration lasts longer than the bridge timeout. The bridge then replies `CHECK_TIMEOUT`
+after 25 seconds (see [Android](#android)).

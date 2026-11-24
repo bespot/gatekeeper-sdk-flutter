@@ -299,6 +299,9 @@ await subscription.cancel();
 Every failure is a `SafeSDKException`. Use its `code` to decide what to do. `message` is a description
 for logs, and may change between versions.
 
+New versions of the plugin may add values to `SafeSDKErrorCode`. Keep a `default` case in your `switch`,
+as in the example below, so that a new value does not break your build.
+
 ```dart
 try {
   final action = await SafeSDK.check();
@@ -583,20 +586,34 @@ The SDK does not retry the registration when the network connection comes back.
 
 #### Check on demand
 
-`check` can wait without an answer while the SDK has no checks yet, for example in the first seconds
-after the app starts, while the device is being registered. Add a timeout:
+While the device is being registered, for example in the first seconds after the app starts, the SDK has no checks
+to run, so a `check` call does not get a result of its own. It waits until the registration finishes, and then gets
+the result of the first check the SDK runs after the registration, or the registration error.
 
-```dart
-final action = await SafeSDK.check().timeout(const Duration(seconds: 10));
-```
+If no result arrives within 25 seconds of the start of the call's check, `check` throws a `SafeSDKException`
+with `SafeSDKErrorCode.checkTimeout`. This can happen, for example, when the registration takes longer than that
+on a slow network, or when the SDK has no checks to run for another reason.
 
-When the timeout expires, `check` throws a `TimeoutException` from `dart:async`.
+If you call `check` while another `check` is running, the second call does not start a check right away.
+It waits until the first one finishes, and then the plugin starts a new check for it. Several calls made while
+one check is running share that new check. So a call can wait for two checks: up to 25 seconds for the running
+one and up to 25 seconds for its own, about 50 seconds in total before it throws `checkTimeout`.
+
+The SDK does not say which check a result belongs to. A call gets the first result that arrives after its check starts,
+and this can also be the result of a periodic check or of a check that started earlier, for example when the app
+returned to the foreground.
+
+Because calls made during a check share one new check, the `subscribe` stream receives one result per check
+the SDK runs, not one per `check` call.
+
+The plugin already has a time limit, so you do not need `.timeout()`. If you add one shorter than 25 seconds,
+a `check` that you call again after the timeout may wait for the check you stopped waiting for to finish first.
 
 #### Subscribe to periodic checks
 
 On Android, the `subscribe` stream also receives:
 
-* the result of every `check` call
+* the result of every check started by `check` calls (calls that share a check add one result, see [Check on demand](#check-on-demand-1))
 * the result of the first checks after the device registration, if your app is already listening
 * registration errors, as described in [Initialize](#initialize-1)
 
@@ -627,6 +644,7 @@ The following codes behave differently on Android:
 | `permissionDenied` | Android only. The user denied a permission. See [Permissions](#permissions-1). |
 | `noActivity` | Android only. A permission was requested without a visible screen, or the screen closed while the request was waiting. See [Permissions](#permissions-1). |
 | `engineDetached` | Android only. The plugin was detached from its Flutter engine while `check` was waiting. When the engine is destroyed, your Dart code stops with it, so you usually see this only if your app removes the plugin from a running engine. |
+| `checkTimeout` | Android only. The SDK sent no result within 25 seconds. See [Check on demand](#check-on-demand-1). |
 
 Unlike on iOS, errors of the device registration, for example `invalidToken`, `authError` or `noActiveApiKey`,
 are sent to the `subscribe` stream if your app is listening at that moment. See [Initialize](#initialize-1).
@@ -687,6 +705,7 @@ The Dart API is the same on both platforms, but some methods behave differently:
 | `initialize` | Initializes the SDK in OAuth2 mode. | Throws `unimplemented`. The SDK starts by itself when the app starts. See [Initialize](#initialize-1). |
 | `debugLoggingEnabled` of `initialize` and `initializeWithAccessToken` | Enables the SDK logs. | Ignored. Use `enableLogging`. |
 | `enableLogging` | Throws `unimplemented`. Use `debugLoggingEnabled`. See [Debug logs](#debug-logs). | Enables or disables the SDK logs at any time. |
+| `check` | No time limit. | Throws `checkTimeout` if no result arrives within 25 seconds. A call made while another check is running waits for a new check. See [Check on demand](#check-on-demand-1). |
 | `askForLocationPermissions` | Returns right away, without waiting for the user's answer. | Waits for the user's answer, and throws `permissionDenied` if the user denies it. |
 | `askForStoragePermissions` | Throws `unimplemented`. The permission is used only by Android checks. | Requests the permission. See [Permissions](#permissions-1). |
 | `askForMediaAudioPermissions` | Throws `unimplemented`. The permission is used only by Android checks. | Requests the permission. See [Permissions](#permissions-1). |
