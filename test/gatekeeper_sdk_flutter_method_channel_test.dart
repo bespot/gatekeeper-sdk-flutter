@@ -148,6 +148,18 @@ void main() {
       );
     });
 
+    test('converts the Android check timeout error', () async {
+      nativeResponse = (_) => throw PlatformException(
+        code: 'CHECK_TIMEOUT',
+        message: 'The SDK did not answer the check within 25 seconds',
+      );
+
+      await expectLater(
+        platform.check(),
+        throwsA(isA<SafeSDKException>().having((e) => e.code, 'code', SafeSDKErrorCode.checkTimeout)),
+      );
+    });
+
     test('maps unknown error codes to SafeSDKErrorCode.unknownError', () async {
       nativeResponse = (_) => throw PlatformException(code: 'DEFAULT_UNKNOWN_ERROR');
 

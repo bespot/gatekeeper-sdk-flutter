@@ -50,6 +50,7 @@ enum SafeSDKErrorCode {
   permissionDenied('PERMISSION_DENIED'),
   noActivity('NO_ACTIVITY'),
   engineDetached('ENGINE_DETACHED'),
+  checkTimeout('CHECK_TIMEOUT'),
   unimplemented('UNIMPLEMENTED'),
   unknownError('UNKNOWN_ERROR');
 

@@ -3,8 +3,6 @@ package com.bespot.gatekeeper_sdk_flutter
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Handler
-import android.os.Looper
 import com.bespot.shared.common.models.Action
 import com.bespot.shared.core.Failure
 import com.bespot.shared.core.FraudulentCheckObserver
@@ -20,11 +18,15 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 
 /** Connects the Dart API to the Android SDK. See CONTRACT.md for the channel contract. */
-class GatekeeperSdkFlutterPlugin :
-    FlutterPlugin,
+class GatekeeperSdkFlutterPlugin internal constructor(
+    private val mainThread: MainThread,
+) : FlutterPlugin,
     MethodCallHandler,
     EventChannel.StreamHandler,
     ActivityAware {
+    // Used by Flutter's plugin registrant.
+    constructor() : this(LooperMainThread())
+
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
     private lateinit var applicationContext: Context
@@ -33,14 +35,21 @@ class GatekeeperSdkFlutterPlugin :
     // The binding, not only the Activity, because permission results need a listener on it.
     private var activityBinding: ActivityPluginBinding? = null
 
-    // Checks waiting for the next SDK result. Used only on the main thread.
-    private val pendingChecks = mutableListOf<Result>()
+    // Checks run in rounds, one SDK check at a time. The first SDK result after a round starts answers
+    // every check of the round. Both lists are used only on the main thread.
+    // Checks waiting for the SDK check that is running. Empty when no SDK check is running.
+    private val currentRound = mutableListOf<Result>()
+
+    // Checks called while an SDK check was running. They wait for a new SDK check, started when the
+    // current round finishes, because the running one may have collected its data before they were called.
+    // The SDK does not tag its results, so an older SDK check's result can still answer them.
+    private val nextRound = mutableListOf<Result>()
+
+    // Answers the current round with CHECK_TIMEOUT if the SDK sends no result in time.
+    private val roundTimeout = Runnable { onRoundTimeout() }
 
     // onCancel arrived while checks were waiting, so the SDK unsubscribe waits for them.
     private var unsubscribeWhenChecksFinish = false
-
-    // Created on first use, because unit tests have no main Looper.
-    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
     // One observer for both check and subscribe. The SDK keeps a single observer,
     // so a check would otherwise replace the one set by subscribe.
@@ -51,12 +60,12 @@ class GatekeeperSdkFlutterPlugin :
                 signature: String,
             ) {
                 val map = actionMap(action, signature)
-                mainHandler.post { deliverSuccess(map) }
+                mainThread.post { deliverSuccess(map) }
             }
 
             override fun onError(error: Failure) {
                 val (code, message) = mapFailureToCodeAndMessage(error)
-                mainHandler.post { deliverError(code, message) }
+                mainThread.post { deliverError(code, message) }
             }
         }
 
@@ -94,8 +103,11 @@ class GatekeeperSdkFlutterPlugin :
         eventSink = null
 
         // Dart is gone, so every waiting call gets an error now. Otherwise its future never completes.
-        val checks = pendingChecks.toList()
-        pendingChecks.clear()
+        // No new round starts, and the timeout of the current round is cancelled.
+        mainThread.removeCallbacks(roundTimeout)
+        val checks = currentRound + nextRound
+        currentRound.clear()
+        nextRound.clear()
         checks.forEach { it.error(ENGINE_DETACHED, ENGINE_DETACHED_MESSAGE, null) }
         val permissionRequests = pendingPermissionRequests.values.flatten()
         pendingPermissionRequests.clear()
@@ -132,9 +144,13 @@ class GatekeeperSdkFlutterPlugin :
                 result.success(null)
             }
             "check" -> {
-                pendingChecks.add(result)
-                sdkObserverOwner = this
-                SafeSdk.check(sdkObserver)
+                if (currentRound.isEmpty()) {
+                    currentRound.add(result)
+                    startRound()
+                } else {
+                    // An SDK check is running, and it may have collected its data before this call.
+                    nextRound.add(result)
+                }
             }
             "askForLocationPermissions" -> askForPermissions(PermissionGroup.LOCATION, result)
             "askForStoragePermissions" -> askForPermissions(PermissionGroup.STORAGE, result)
@@ -170,7 +186,7 @@ class GatekeeperSdkFlutterPlugin :
 
     override fun onCancel(arguments: Any?) {
         eventSink = null
-        if (pendingChecks.isEmpty()) {
+        if (currentRound.isEmpty() && nextRound.isEmpty()) {
             unsubscribeIfOwner()
         } else {
             unsubscribeWhenChecksFinish = true
@@ -232,10 +248,10 @@ class GatekeeperSdkFlutterPlugin :
             else -> "DEFAULT_UNKNOWN_ERROR" to "Unknown Error (see support section)"
         }
 
+    // The SDK does not say which check a result belongs to, so any result answers the current round,
+    // including a periodic result or an error from another call such as setAccessToken.
     private fun deliverSuccess(action: Map<String, String>) {
-        val checks = pendingChecks.toList()
-        pendingChecks.clear()
-        checks.forEach { it.success(action) }
+        finishRound { it.success(action) }
         eventSink?.success(action)
         unsubscribeIfWaiting()
     }
@@ -244,15 +260,40 @@ class GatekeeperSdkFlutterPlugin :
         code: String,
         message: String,
     ) {
-        val checks = pendingChecks.toList()
-        pendingChecks.clear()
-        checks.forEach { it.error(code, message, null) }
+        finishRound { it.error(code, message, null) }
         eventSink?.error(code, message, null)
         unsubscribeIfWaiting()
     }
 
+    // The timeout is not sent to the stream, because it is not an SDK result.
+    private fun onRoundTimeout() {
+        finishRound { it.error(CHECK_TIMEOUT, CHECK_TIMEOUT_MESSAGE, null) }
+        unsubscribeIfWaiting()
+    }
+
+    private fun startRound() {
+        mainThread.removeCallbacks(roundTimeout)
+        mainThread.postDelayed(roundTimeout, CHECK_TIMEOUT_MILLIS)
+        sdkObserverOwner = this
+        SafeSdk.check(sdkObserver)
+    }
+
+    // Answers the current round, then starts the next round if checks are waiting for it.
+    private fun finishRound(reply: (Result) -> Unit) {
+        if (currentRound.isEmpty()) return
+        mainThread.removeCallbacks(roundTimeout)
+        val checks = currentRound.toList()
+        currentRound.clear()
+        checks.forEach(reply)
+        if (nextRound.isNotEmpty()) {
+            currentRound.addAll(nextRound)
+            nextRound.clear()
+            startRound()
+        }
+    }
+
     private fun unsubscribeIfWaiting() {
-        if (unsubscribeWhenChecksFinish && pendingChecks.isEmpty()) {
+        if (unsubscribeWhenChecksFinish && currentRound.isEmpty() && nextRound.isEmpty()) {
             unsubscribeWhenChecksFinish = false
             unsubscribeIfOwner()
         }
@@ -320,6 +361,15 @@ class GatekeeperSdkFlutterPlugin :
         const val NO_ACTIVITY_MESSAGE = "No Activity to show the permission dialog"
         const val ENGINE_DETACHED = "ENGINE_DETACHED"
         const val ENGINE_DETACHED_MESSAGE = "The Flutter engine was detached"
+        const val CHECK_TIMEOUT = "CHECK_TIMEOUT"
+        const val CHECK_TIMEOUT_MESSAGE = "The SDK did not answer the check within 25 seconds"
+
+        // Counted from the start of each round's SDK check. Longer than the SDK's own network request
+        // timeout (about 20 seconds), so a slow request ends with the SDK's error before the next round
+        // starts, and this timeout only answers when the SDK sends nothing.
+        // If you change it, also change CHECK_TIMEOUT_MESSAGE, the Dart doc of SafeSDK.check,
+        // README.md, CONTRACT.md and the tests, which state the same number of seconds.
+        const val CHECK_TIMEOUT_MILLIS = 25_000L
 
         // The plugin instance whose observer the SDK holds. The SDK keeps one observer for the
         // whole process, and every Flutter engine has its own plugin instance. Main thread only.

@@ -44,9 +44,14 @@ class SafeSDK {
   ///
   /// Throws [SafeSDKException] on failure.
   ///
-  /// On Android the result is also emitted on [subscribe], and the call may not complete
-  /// while the device is being registered, so add a timeout. If the Flutter engine is
-  /// detached while the call is waiting, it throws [SafeSDKErrorCode.engineDetached].
+  /// On Android the result is also emitted on [subscribe]. A call made while another check
+  /// is running waits for a new SDK check, which starts when the running one finishes.
+  /// The call gets the first SDK result after its check starts, which can also be the result
+  /// of a periodic check.
+  /// If the SDK sends no result within 25 seconds of the start of the call's SDK check, the call
+  /// throws [SafeSDKErrorCode.checkTimeout]. A call that waits for a running check first can
+  /// therefore wait up to about 50 seconds in total. If the Flutter engine is detached while the call
+  /// is waiting, it throws [SafeSDKErrorCode.engineDetached].
   static Future<SafeSDKAction> check() => _platform.check();
 
   /// Results of the periodic checks. Call an initialize method first.
